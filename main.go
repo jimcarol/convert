@@ -43,6 +43,14 @@ func ConvertHandler(c *gin.Context) {
 		c.String(http.StatusBadRequest, "No file uploaded")
 		return
 	}
+
+	// 限制文件大小为 5MB（单位：字节）
+	const maxFileSize = 5 * 1024 * 1024 // 5MB
+	if file.Size > maxFileSize {
+		c.String(http.StatusBadRequest, "File size cannot exceed 5MB")
+		return
+	}
+
 	target := c.PostForm("target")
 
 	uploadPath := filepath.Join("./tmp", file.Filename)
@@ -82,6 +90,13 @@ func ConvertHandler(c *gin.Context) {
 
 	// Extract filename from converted path
 	_, fileName := filepath.Split(convertedPath)
+	if fileName == "" {
+		c.JSON(http.StatusOK, gin.H{
+			"msg": "convert failed!",
+		})
+
+		return
+	}
 
 	c.JSON(http.StatusOK, gin.H{
 		"download_url": "/download/" + fileName,

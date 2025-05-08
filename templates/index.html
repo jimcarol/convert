@@ -3,18 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Image Conversion Service</title>
+    <title>File Conversion Service</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
     <link rel="stylesheet" href="/static/styles.css">
 </head>
 <body>
 
     <div class="container">
-        <h1>Image Conversion Service</h1>
-        <p>Upload an image to convert it to WebP format.</p>
+        <h1>File Conversion</h1>
+        <p>Upload an file to convert it to WebP/Word/Pdf format.</p>
 
         <form action="/convert" method="POST" enctype="multipart/form-data" id="uploadForm">
             <div class="form-group">
-                <label for="file">Choose an image file (JPEG/PNG only):</label>
+                <label for="file">Choose an file (JPEG/PNG/doc(x)/pdf only):</label>
                 <input type="file" name="file" id="file" accept="image/jpeg, image/png, application/pdf, .doc, .docx" required>
             </div>
 
@@ -27,12 +28,12 @@
                 </select>
             </div>
 
-            <button type="submit">Convert Image</button>
+            <button type="submit">Convert File</button>
         </form>
 
         <div id="result" style="display: none;">
-            <h3>Download your converted image</h3>
-            <a id="downloadLink" href="" download>Download Converted Image</a>
+            <!-- <h3>Download your converted file</h3>
+            <a id="downloadLink" href="" download>Download Converted File</a> -->
         </div>
     </div>
 
