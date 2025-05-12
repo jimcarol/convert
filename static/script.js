@@ -48,6 +48,11 @@ document.getElementById('uploadForm').addEventListener('submit', function(e) {
     return;
   }
 
+  const submitButton = document.getElementById("submit-btn");
+  // 禁用按钮并显示加载状态
+  submitButton.disabled = true;
+  submitButton.innerHTML = 'Converting... <span class="spinner"></span>';
+
   fetch('/convert', {
       method: 'POST',
       body: formData
@@ -72,6 +77,10 @@ document.getElementById('uploadForm').addEventListener('submit', function(e) {
       console.error('Error:', error);
     //   alert('An error occurred while processing your request.');
       insertResult(false, {}, 'An error occurred while processing your request.')
+  }).finally(() => {
+    // 提交完成后恢复按钮状态
+    submitButton.disabled = false;
+    submitButton.innerHTML = 'Convert File';
   });
 });
 

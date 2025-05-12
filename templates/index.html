@@ -1,42 +1,59 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>File Conversion Service</title>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="/static/styles.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>欢迎访问</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet" />
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      background: #f9fafb;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      padding: 1rem;
+      color: #111827;
+    }
+
+    h1 {
+      font-size: 2rem;
+      font-weight: 600;
+      margin-bottom: 2rem;
+      text-align: center;
+    }
+
+    a {
+      display: block;
+      margin: 0.5rem 0;
+      padding: 0.75rem 1.5rem;
+      background-color: #2563eb;
+      color: white;
+      text-decoration: none;
+      border-radius: 8px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+      transition: background-color 0.3s ease;
+      text-align: center;
+      max-width: 300px;
+      width: 100%;
+    }
+
+    a:hover {
+      background-color: #1d4ed8;
+    }
+  </style>
 </head>
 <body>
-
-    <div class="container">
-        <h1>File Conversion</h1>
-        <p>Upload an file to convert it to WebP/Word/Pdf format.</p>
-
-        <form action="/convert" method="POST" enctype="multipart/form-data" id="uploadForm">
-            <div class="form-group">
-                <label for="file">Choose an file (JPEG/PNG/doc(x)/pdf only):</label>
-                <input type="file" name="file" id="file" accept="image/jpeg, image/png, application/pdf, .doc, .docx" required>
-            </div>
-
-            <div class="form-group">
-                <label for="target">Select the target format:</label>
-                <select name="target" id="target">
-                    <option value="webp" selected>WebP</option>
-                    <option value="pdf" selected>Word (.doc/.docx) to PDF</option>
-                    <option value="docx" selected>PDF to Word (.docx)</option>
-                </select>
-            </div>
-
-            <button type="submit">Convert File</button>
-        </form>
-
-        <div id="result" style="display: none;">
-            <!-- <h3>Download your converted file</h3>
-            <a id="downloadLink" href="" download>Download Converted File</a> -->
-        </div>
-    </div>
-
-    <script src="/static/script.js"></script>
+  <h1>欢迎访问本站</h1>
+  <a href="/file-convert">File Convert</a>
+  <a href="/png-to-pdf">Png To Pdf</a>
 </body>
 </html>

@@ -31,6 +31,7 @@ You can install them using:
 ```bash
 go get github.com/gin-gonic/gin
 go get github.com/chai2010/webp
+go get github.com/signintech/gopdf
 ```
 
 ## Installation
@@ -153,4 +154,11 @@ The index.html file in the templates folder is used as the frontend. You can edi
 The service uses gin's built-in logging, so you'll see logs in the terminal as the server runs.
 
 If you encounter any issues, check the logs for more details.
+
+# Docker
+```shell
+docker buildx build --platform linux/amd64 --no-cache -t  converter:0.0.1-amd64 .
+docker tag converter:0.0.1-amd64 jimhsx/convert:0.0.1-amd64 
+docker push jimhsx/convert:0.0.1-amd64
+```
 

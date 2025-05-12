@@ -21,6 +21,7 @@ func main() {
 	r.Static("/static", "./static")
 	r.LoadHTMLGlob("templates/*")
 
+	r.POST("/concat", handlers.UploadHandler)
 	r.POST("/convert", ConvertHandler)
 	r.GET("/download/:filename", func(c *gin.Context) {
 		filename := c.Param("filename")
@@ -29,6 +30,12 @@ func main() {
 	})
 	r.GET("/", func(c *gin.Context) {
 		c.HTML(http.StatusOK, "index.html", nil)
+	})
+	r.GET("/file-convert", func(c *gin.Context) {
+		c.HTML(http.StatusOK, "file-convert.html", nil)
+	})
+	r.GET("/png-to-pdf", func(c *gin.Context) {
+		c.HTML(http.StatusOK, "png2pdf.html", nil)
 	})
 
 	os.MkdirAll("./tmp", os.ModePerm)
