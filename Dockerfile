@@ -23,6 +23,7 @@ FROM alpine:latest
 
 # Install certificates if needed (for HTTPS, etc.)
 RUN apk --no-cache add ca-certificates libreoffice openjdk11-jre font-noto-cjk
+ENV FONT_PATH="/usr/share/fonts/noto/NotoSansCJK-Bold.ttc"
 
 WORKDIR /root/
 

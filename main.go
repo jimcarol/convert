@@ -1,9 +1,8 @@
 package main
 
 import (
+	"file-converter/handlers"
 	"fmt"
-	"github.com/chai2010/webp"
-	"github.com/gin-gonic/gin"
 	"image"
 	_ "image/jpeg"
 	_ "image/png"
@@ -12,7 +11,9 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
-	"file-converter/handlers"
+
+	"github.com/chai2010/webp"
+	"github.com/gin-gonic/gin"
 )
 
 func main() {
@@ -23,6 +24,7 @@ func main() {
 
 	r.POST("/concat", handlers.UploadHandler)
 	r.POST("/convert", ConvertHandler)
+	r.POST("/upload-gif", handlers.UploadGIFHandler)
 	r.GET("/download/:filename", func(c *gin.Context) {
 		filename := c.Param("filename")
 		filePath := filepath.Join("./tmp", filename)
@@ -36,6 +38,9 @@ func main() {
 	})
 	r.GET("/png-to-pdf", func(c *gin.Context) {
 		c.HTML(http.StatusOK, "png2pdf.html", nil)
+	})
+	r.GET("/gif-generate", func(c *gin.Context) {
+		c.HTML(http.StatusOK, "gif-generator.html", nil)
 	})
 
 	os.MkdirAll("./tmp", os.ModePerm)

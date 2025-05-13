@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Create GIF</title>
+  <link rel="stylesheet" href="/static/file_btn.css">
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: "Segoe UI", sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: #f8f9fa;
+      color: #333;
+    }
+    header {
+      display: flex;
+      align-items: center;
+      padding: 1rem;
+      background-color: #007bff;
+      color: white;
+    }
+    header h1 {
+      flex: 1;
+      text-align: center;
+      font-size: 1.2rem;
+      margin: 0;
+    }
+    header a {
+      color: white;
+      text-decoration: none;
+      font-weight: bold;
+    }
+    main {
+      padding: 1rem;
+      max-width: 600px;
+      margin: auto;
+    }
+    .image-entry {
+      margin-bottom: 1rem;
+      padding: 0.75rem;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      background: white;
+    }
+    .image-entry input[type="text"] {
+      width: 100%;
+      margin-top: 0.5rem;
+      padding: 0.5rem;
+    }
+    button {
+      width: 100%;
+      padding: 0.75rem;
+      background-color: #28a745;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-size: 1rem;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #218838;
+    }
+    .preview-img {
+      max-width: 100%;
+      margin-top: 0.5rem;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <a href="/">Home</a>
+    <h1>Create GIF</h1>
+  </header>
+  <main>
+    <form id="gifForm">
+      <!-- <input type="file" id="images" name="images" multiple accept="image/*" /> -->
+      <div class="file-upload-wrapper">
+        <div class="file-upload-button">选择文件</div>
+        <input type="file" id="images" class="file-upload-input" name="images" multiple>
+      </div>
+      <div id="previewContainer"></div>
+      <button type="submit" id="submitButton">Generate GIF</button>
+    </form>
+    <div id="result" style="margin-top:1rem;"></div>
+  </main>
+
+  <script>
+    const imagesInput = document.getElementById("images");
+    const previewContainer = document.getElementById("previewContainer");
+    const form = document.getElementById("gifForm");
+    const result = document.getElementById("result");
+    const submitButton = document.getElementById('submitButton');
+
+    imagesInput.addEventListener("change", () => {
+      previewContainer.innerHTML = "";
+      Array.from(imagesInput.files).forEach((file, index) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const div = document.createElement("div");
+          div.className = "image-entry";
+          div.innerHTML = `
+            <img src="${e.target.result}" class="preview-img"/>
+            <input type="text" name="texts" placeholder="Optional text for this image" />
+          `;
+          previewContainer.appendChild(div);
+        };
+        reader.readAsDataURL(file);
+      });
+    });
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const formData = new FormData();
+      const files = imagesInput.files;
+      const texts = form.querySelectorAll('input[name="texts"]');
+
+      for (let i = 0; i < files.length; i++) {
+        formData.append("images", files[i]);
+        formData.append("texts", texts[i].value);
+      }
+
+      submitButton.disabled = true;
+      submitButton.innerHTML = 'Converting... <span class="spinner"></span>';
+      fetch("/upload-gif", {
+        method: "POST",
+        body: formData,
+      }).then((res) => {
+        return res.json()
+      }).then((data) => {
+        if (data.url) {
+          result.innerHTML = `<p><strong>Generated GIF:</strong></p><img src="${data.url}" style="max-width:100%"/>`;
+        } else {
+          result.textContent = data.error || "Failed to generate GIF.";
+        }
+      }).finally(() => {
+        // 提交完成后恢复按钮状态
+        submitButton.disabled = false;
+        submitButton.innerHTML = 'Generate GIF';
+      })
+    });
+  </script>
+</body>
+</html>

@@ -19,7 +19,7 @@ Before you start, ensure that the following software is installed:
 
 - **Go 1.18+**: [Install Go](https://golang.org/dl/)
 - **Git**: [Install Git](https://git-scm.com/)
-- **Go modules**: Make sure Go modules are enabled (`GO111MODULE=on` by default in Go 1.16+)
+- **Go modules**: Make sure Go modules are enabled (`GO_MODULE=on` by default in Go 1.16+)
 
 Additionally, ensure you have the following libraries:
 
@@ -157,8 +157,8 @@ If you encounter any issues, check the logs for more details.
 
 # Docker
 ```shell
-docker buildx build --platform linux/amd64 --no-cache -t  converter:0.0.1-amd64 .
-docker tag converter:0.0.1-amd64 jimhsx/convert:0.0.1-amd64 
-docker push jimhsx/convert:0.0.1-amd64
+docker buildx build --platform linux/amd64 --no-cache -t  converter:{tag_name}-amd64 .
+docker tag converter:{tag_name}-amd64 jimhsx/convert:{tag_name}-amd64 
+docker push jimhsx/convert:{tag_name}-amd64
 ```
 
