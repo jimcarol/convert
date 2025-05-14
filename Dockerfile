@@ -22,8 +22,8 @@ RUN go build -o main .
 FROM alpine:latest
 
 # Install certificates if needed (for HTTPS, etc.)
-RUN apk --no-cache add ca-certificates libreoffice openjdk11-jre font-noto-cjk font-roboto font-dejavu
-ENV FONT_PATH="/usr/share/fonts/dejavu/DejaVuSansCondensed-Bold.ttf"
+RUN apk --no-cache add ca-certificates libreoffice openjdk11-jre font-noto-cjk font-wqy-zenhei
+ENV FONT_PATH="/usr/share/fonts/wqy-zenhei/wqy-zenhei.ttc"
 
 WORKDIR /root/
 
