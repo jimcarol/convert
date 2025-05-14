@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/disintegration/imaging"
 	"github.com/fogleman/gg"
 	"github.com/gin-gonic/gin"
 )
@@ -23,6 +24,27 @@ func convertToPaletted(img image.Image) *image.Paletted {
 	paletted := image.NewPaletted(bounds, palette.Plan9)
 	draw.FloydSteinberg.Draw(paletted, bounds, img, image.Point{})
 	return paletted
+}
+
+// 等比例缩放图片，保持宽高比例
+func resizeImage(img image.Image, targetWidth, targetHeight int) image.Image {
+	bounds := img.Bounds()
+	width := bounds.Dx()
+	height := bounds.Dy()
+
+	// 计算缩放比例
+	var newWidth, newHeight int
+	if width > height {
+		newWidth = targetWidth
+		newHeight = int(float64(height) * float64(targetWidth) / float64(width))
+	} else {
+		newHeight = targetHeight
+		newWidth = int(float64(width) * float64(targetHeight) / float64(height))
+	}
+
+	// 使用 nearest-neighbor algorithm (图像缩放方法)
+	resizedImg := imaging.Resize(img, newWidth, newHeight, imaging.Lanczos)
+	return resizedImg
 }
 
 func UploadGIFHandler(c *gin.Context) {
@@ -55,8 +77,9 @@ func UploadGIFHandler(c *gin.Context) {
 			c.JSON(500, gin.H{"error": "Decode image failed"})
 			return
 		}
+		resizedImg := resizeImage(img, 300, 300)
 
-		dc := gg.NewContextForImage(img)
+		dc := gg.NewContextForImage(resizedImg)
 
 		if i < len(texts) && texts[i] != "" {
 			// dc.SetRGB(1, 1, 1) // 白色字体
@@ -67,6 +90,7 @@ func UploadGIFHandler(c *gin.Context) {
 			}
 			// fontPath := "/System/Library/Fonts/Palatino.ttc"
 			if err := dc.LoadFontFace(fontPath, 24); err != nil {
+				log.Println("Load Font ERROR:", fontPath, err)
 				c.JSON(500, gin.H{"error": "Font loading failed"})
 				return
 			}

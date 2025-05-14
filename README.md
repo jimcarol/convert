@@ -157,8 +157,8 @@ If you encounter any issues, check the logs for more details.
 
 # Docker
 ```shell
-docker buildx build --platform linux/amd64 --no-cache -t  converter:{tag_name}-amd64 .
-docker tag converter:{tag_name}-amd64 jimhsx/convert:{tag_name}-amd64 
-docker push jimhsx/convert:{tag_name}-amd64
+docker buildx build --platform linux/amd64 --no-cache -t  converter:${tag_name}-amd64 .
+docker tag converter:${tag_name}-amd64 jimhsx/convert:${tag_name}-amd64 
+docker push jimhsx/convert:${tag_name}-amd64
 ```
 
