@@ -3,6 +3,7 @@ package handlers
 import (
 	"fmt"
 	"image"
+	"image/color"
 	"image/color/palette"
 	"image/draw"
 	"image/gif"
@@ -44,7 +45,16 @@ func resizeImage(img image.Image, targetWidth, targetHeight int) image.Image {
 
 	// 使用 nearest-neighbor algorithm (图像缩放方法)
 	resizedImg := imaging.Resize(img, newWidth, newHeight, imaging.Lanczos)
-	return resizedImg
+
+	// 创建一个 300x300 的画布（透明背景），也可以换成白色背景
+	canvas := imaging.New(targetWidth, targetHeight, color.NRGBA{0, 0, 0, 0})
+
+	// 将缩放后的图像居中放入画布
+	posX := (targetWidth - newWidth) / 2
+	posY := (targetHeight - newHeight) / 2
+	finalImg := imaging.Paste(canvas, resizedImg, image.Pt(posX, posY))
+
+	return finalImg
 }
 
 func UploadGIFHandler(c *gin.Context) {

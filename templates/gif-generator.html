@@ -67,6 +67,21 @@
       margin-top: 0.5rem;
       border-radius: 4px;
     }
+    .remove-button {
+      margin-top: 0.5rem;
+      padding: 0.5rem;
+      background-color: #dc3545;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      font-size: 0.9rem;
+      cursor: pointer;
+      width: 100%;
+      transition: background-color 0.2s ease;
+    }
+    .remove-button:hover {
+      background-color: #c82333;
+    }
   </style>
 </head>
 <body>
@@ -94,33 +109,75 @@
     const result = document.getElementById("result");
     const submitButton = document.getElementById('submitButton');
 
+    let selectedImages = [];
+
     imagesInput.addEventListener("change", () => {
+      const files = Array.from(imagesInput.files);
+      files.forEach(file => {
+        selectedImages.push({ file, text: "" });
+      });
+      renderPreviews();
+    });
+
+    function renderPreviews() {
       previewContainer.innerHTML = "";
-      Array.from(imagesInput.files).forEach((file, index) => {
+      selectedImages.forEach((item, index) => {
         const reader = new FileReader();
         reader.onload = (e) => {
           const div = document.createElement("div");
           div.className = "image-entry";
           div.innerHTML = `
             <img src="${e.target.result}" class="preview-img"/>
-            <input type="text" name="texts" placeholder="Optional text for this image" />
+            <input type="text" placeholder="Optional text for this image" value="${item.text}" oninput="updateText(${index}, this.value)" />
+            <button type="button" class="remove-button" onclick="removeImage(${index})">Remove</button>
           `;
           previewContainer.appendChild(div);
         };
-        reader.readAsDataURL(file);
+        reader.readAsDataURL(item.file);
       });
-    });
+    }
+
+    function updateText(index, value) {
+      selectedImages[index].text = value;
+    }
+
+    function removeImage(index) {
+      selectedImages.splice(index, 1);
+      renderPreviews();
+    }
+
+    // imagesInput.addEventListener("change", () => {
+    //   previewContainer.innerHTML = "";
+    //   Array.from(imagesInput.files).forEach((file, index) => {
+    //     const reader = new FileReader();
+    //     reader.onload = (e) => {
+    //       const div = document.createElement("div");
+    //       div.className = "image-entry";
+    //       div.innerHTML = `
+    //         <img src="${e.target.result}" class="preview-img"/>
+    //         <input type="text" name="texts" placeholder="Optional text for this image" />
+    //       `;
+    //       previewContainer.appendChild(div);
+    //     };
+    //     reader.readAsDataURL(file);
+    //   });
+    // });
 
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
       const formData = new FormData();
-      const files = imagesInput.files;
-      const texts = form.querySelectorAll('input[name="texts"]');
+      // const files = imagesInput.files;
+      // const texts = form.querySelectorAll('input[name="texts"]');
 
-      for (let i = 0; i < files.length; i++) {
-        formData.append("images", files[i]);
-        formData.append("texts", texts[i].value);
-      }
+      // for (let i = 0; i < files.length; i++) {
+      //   formData.append("images", files[i]);
+      //   formData.append("texts", texts[i].value);
+      // }
+
+      selectedImages.forEach(item => {
+        formData.append("images", item.file);
+        formData.append("texts", item.text);
+      });
 
       submitButton.disabled = true;
       submitButton.innerHTML = 'Converting... <span class="spinner"></span>';
