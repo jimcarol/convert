@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Online Notes</title>
+  <style>
+    /* 1) Make sizing predictable so 100% includes padding & border */
+    *,
+    *::before,
+    *::after { box-sizing: border-box; }
+
+    /* 2) Page/container */
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+    }
+    .container {
+      max-width: 1000px;         /* comfortable upper bound */
+      margin: 24px auto;
+      padding: 0 16px;           /* safe gutters on small screens */
+    }
+
+    /* 3) Form */
+    #note-form {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-bottom: 20px;
+      padding: 16px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      background: #fafafa;
+    }
+
+    /* 4) Inputs never overflow the form now */
+    input[type="text"],
+    textarea {
+      display: block;
+      width: 100%;
+      max-width: 100%;           /* guard against flex overflow */
+      padding: 12px;
+      border: 1px solid #bbb;
+      border-radius: 8px;
+      font-size: 1.1rem;
+    }
+
+    #title {
+      font-size: 1.3rem;         /* bigger title */
+      font-weight: 600;
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 260px;         /* large but not silly */
+      line-height: 1.5;
+    }
+
+    /* 5) Buttons */
+    button {
+      font-size: 1rem;
+      padding: 10px 14px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    button[type="submit"] { background: #007bff; color: #fff; }
+    #cancel-edit { background: #999; color: #fff; }
+
+    /* 6) Notes list */
+    .note {
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 12px;
+      background: #fff;
+    }
+    .note-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      min-width: 0;              /* prevents child overflow in flex */
+    }
+    .note-actions { flex-shrink: 0; }
+    .note-actions button { margin-left: 6px; background: #eee; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>📒 Online Notes</h1>
+
+    <form id="note-form">
+      <input type="hidden" id="note-id" />
+      <input type="text" id="title" placeholder="Title" required />
+      <textarea id="content" placeholder="Write your note..." required></textarea>
+      <div>
+        <button type="submit">Save</button>
+        <button type="button" id="cancel-edit" style="display:none;">Cancel</button>
+      </div>
+    </form>
+
+    <div id="notes"></div>
+  </div>
+
+  <script>
+    const form = document.getElementById('note-form');
+    const notesDiv = document.getElementById('notes');
+    const noteIdInput = document.getElementById('note-id');
+    const titleInput = document.getElementById('title');
+    const contentInput = document.getElementById('content');
+    const cancelBtn = document.getElementById('cancel-edit');
+
+    async function fetchNotes() {
+      const res = await fetch('/notes');
+      const notes = await res.json();
+      renderNotes(notes);
+    }
+
+    function renderNotes(notes) {
+      notesDiv.innerHTML = '';
+      notes.sort((a,b) => b.updated_at.localeCompare(a.updated_at));
+      notes.forEach(note => {
+        const div = document.createElement('div');
+        div.className = 'note';
+        div.innerHTML = `
+          <div class="note-header">
+            <strong>${note.title}</strong>
+            <div class="note-actions">
+              <button class="edit-btn" 
+                      data-id="${note.id}" 
+                      data-title="${encodeURIComponent(note.title)}" 
+                      data-content="${encodeURIComponent(note.content)}">Edit</button>
+              <button onclick="deleteNote(${note.id})">Delete</button>
+            </div>
+          </div>
+          <p style="white-space:pre-wrap;">${note.content}</p>
+          <small>Updated: ${new Date(note.updated_at).toLocaleString()}</small>
+        `;
+        notesDiv.appendChild(div);
+      });
+    }
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const id = noteIdInput.value;
+      const note = {
+        title: titleInput.value,
+        content: contentInput.value
+      };
+      if (id) {
+        await fetch(`/notes/${id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(note)
+        });
+      } else {
+        await fetch('/notes', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(note)
+        });
+      }
+      resetForm();
+      fetchNotes();
+    });
+
+    async function deleteNote(id) {
+      await fetch(`/notes/${id}`, { method: 'DELETE' });
+      fetchNotes();
+    }
+
+    notesDiv.addEventListener('click', (e) => {
+      if (e.target.classList.contains('edit-btn')) {
+        const btn = e.target;
+        const id = btn.dataset.id;
+        const title = decodeURIComponent(btn.dataset.title);
+        const content = decodeURIComponent(btn.dataset.content);
+        editNote(id, title, content);
+      }
+    });
+
+    window.editNote = (id, title, content) => {
+      noteIdInput.value = id;
+      titleInput.value = title;
+      contentInput.value = content;
+      cancelBtn.style.display = 'inline';
+    };
+
+    cancelBtn.addEventListener('click', () => {
+      resetForm();
+    });
+
+    function resetForm() {
+      noteIdInput.value = '';
+      titleInput.value = '';
+      contentInput.value = '';
+      cancelBtn.style.display = 'none';
+    }
+
+    fetchNotes();
+  </script>
+</body>
+</html>

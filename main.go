@@ -42,10 +42,19 @@ func main() {
 	r.GET("/gif-generate", func(c *gin.Context) {
 		c.HTML(http.StatusOK, "gif-generator.html", nil)
 	})
+	r.GET("/online-note", func(c *gin.Context) {
+		c.HTML(http.StatusOK, "notes.html", nil)
+	})
+
+	r.GET("/notes", handlers.GetNotes)
+	r.POST("/notes", handlers.CreateNote)
+	r.PUT("/notes/:id", handlers.UpdateNote)
+	r.DELETE("/notes/:id", handlers.DeleteNote)
 
 	os.MkdirAll("./tmp", os.ModePerm)
 	go AutoCleanTmp()
 
+	handlers.LoadNotes()
 	r.Run(":8080")
 }
 
