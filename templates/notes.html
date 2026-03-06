@@ -32,6 +32,16 @@
       border: 1px solid #ccc;
       border-radius: 8px;
       background: #fafafa;
+      transition: all 0.3s ease;
+    }
+    #note-form.focus-mode textarea {
+      min-height: 60vh;
+    }
+    #exit-focus {
+      display: none;
+    }
+    .focus-overlay {
+      display: none;
     }
 
     /* 4) Inputs never overflow the form now */
@@ -59,42 +69,183 @@
 
     /* 5) Buttons */
     button {
-      font-size: 1rem;
-      padding: 10px 14px;
+      font-size: 0.9rem;
+      padding: 8px 16px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      font-weight: 500;
+    }
+    button:hover { opacity: 0.9; transform: translateY(-1px); }
+    button[type="submit"] { background: #4CAF50; color: #fff; }
+    button[type="submit"]:hover { background: #45a049; }
+    #cancel-edit { background: #f44336; color: #fff; }
+    #cancel-edit:hover { background: #da190b; }
+
+    #show-more, #show-less {
+      width: 100%;
+      padding: 12px;
+      margin-top: 12px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
       border: none;
       border-radius: 8px;
       cursor: pointer;
+      font-weight: 500;
+      transition: all 0.3s ease;
     }
-    button[type="submit"] { background: #007bff; color: #fff; }
-    #cancel-edit { background: #999; color: #fff; }
+    #show-more:hover, #show-less:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    }
 
     /* 6) Notes list */
     .note {
-      border: 1px solid #ddd;
-      border-radius: 8px;
-      padding: 12px;
-      margin-bottom: 12px;
+      border: 1px solid #e0e0e0;
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 16px;
       background: #fff;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+      transition: all 0.3s ease;
+    }
+    .note:hover {
+      box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+      transform: translateY(-2px);
     }
     .note-header {
       display: flex;
       align-items: center;
       justify-content: space-between;
       gap: 8px;
-      min-width: 0;              /* prevents child overflow in flex */
+      min-width: 0;
       cursor: pointer;
+      padding: 8px;
+      border-radius: 8px;
+      transition: background 0.2s ease;
     }
-    .note-title { flex: 1; }
+    .note-header:hover { background: #f5f5f5; }
+    .note-title {
+      flex: 1;
+      font-size: 1.1rem;
+      color: #333;
+    }
     .note-content {
       display: none;
-      margin-top: 8px;
+      margin-top: 12px;
+      padding: 16px;
+      background: #fafafa;
+      border-radius: 8px;
+      border-left: 4px solid #667eea;
     }
     .note-content.expanded { display: block; }
+    .note-content p {
+      color: #555;
+      line-height: 1.6;
+      margin: 0 0 12px 0;
+    }
+    .note-content small {
+      color: #999;
+      font-size: 0.85rem;
+    }
     .note-actions { flex-shrink: 0; }
-    .note-actions button { margin-left: 6px; background: #eee; }
+    .note-actions button {
+      margin-left: 8px;
+      background: #e3f2fd;
+      color: #1976d2;
+      padding: 6px 12px;
+      font-size: 0.85rem;
+    }
+    .note-actions button:hover {
+      background: #1976d2;
+      color: white;
+    }
+
+    .expand-btn {
+      display: none;
+      margin-top: 12px;
+      padding: 8px 16px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      font-weight: 500;
+      transition: all 0.3s ease;
+    }
+    .expand-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    }
+    .note-content.expanded .expand-btn { display: inline-block; }
+
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.6);
+      z-index: 1000;
+      backdrop-filter: blur(4px);
+    }
+    .modal-overlay.active { display: block; }
+
+    .modal-content {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 90%;
+      max-width: 900px;
+      max-height: 80vh;
+      background: white;
+      border-radius: 16px;
+      padding: 32px;
+      z-index: 1001;
+      overflow-y: auto;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    }
+    .modal-content h2 {
+      color: #333;
+      margin-top: 0;
+      padding-right: 80px;
+    }
+    .modal-content p {
+      color: #555;
+      line-height: 1.8;
+    }
+
+    .modal-close {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      padding: 8px 16px;
+      background: #f44336;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 500;
+      transition: all 0.2s ease;
+    }
+    .modal-close:hover {
+      background: #da190b;
+      transform: translateY(-1px);
+    }
   </style>
 </head>
 <body>
+  <div class="modal-overlay" id="modal-overlay"></div>
+  <div class="modal-content" id="modal-content" style="display:none;">
+    <button class="modal-close" id="modal-close">Close</button>
+    <div id="modal-body"></div>
+  </div>
+  <div class="focus-overlay"></div>
+  <button id="exit-focus">Press ESC to exit</button>
   <div class="container">
     <h1>📒 Online Notes</h1>
 
@@ -109,7 +260,8 @@
     </form>
 
     <div id="notes"></div>
-    <button id="show-more" style="display:none; width:100%; padding:10px; margin-top:12px; background:#f0f0f0; border:1px solid #ddd; border-radius:8px; cursor:pointer;">Show More Notes</button>
+    <button id="show-more" style="display:none;">Show More Notes</button>
+    <button id="show-less" style="display:none;">Show Less</button>
   </div>
 
   <script>
@@ -119,98 +271,46 @@
     const titleInput = document.getElementById('title');
     const contentInput = document.getElementById('content');
     const cancelBtn = document.getElementById('cancel-edit');
+    const showMoreBtn = document.getElementById('show-more');
+    const showLessBtn = document.getElementById('show-less');
+    const exitFocusBtn = document.getElementById('exit-focus');
+    const overlay = document.querySelector('.focus-overlay');
+    const VISIBLE_COUNT = 5;
+
+    function enterFocusMode() {
+      form.classList.add('focus-mode');
+    }
+
+    function exitFocusMode() {
+      form.classList.remove('focus-mode');
+    }
+
+    [titleInput, contentInput].forEach(input => {
+      input.addEventListener('focus', enterFocusMode);
+      input.addEventListener('blur', exitFocusMode);
+    });
+
+    exitFocusBtn.addEventListener('click', exitFocusMode);
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && form.classList.contains('focus-mode')) {
+        exitFocusMode();
+      }
+    });
 
     async function fetchNotes() {
-      // const res = await fetch('/notes');
-      // const notes = await res.json();
-      notes = [
-    {
-        "id": 3,
-        "title": "job",
-        "content": "https://github.com/overgrad/mvp/actions/runs/\n17546906822/job/49836135757?pr=3416",
-        "created_at": "2025-09-08T11:12:18.380237109Z",
-        "updated_at": "2026-02-11T19:01:48.679571068Z"
-    },
-    {
-        "id": 4,
-        "title": "or",
-        "content": "https://github.com/overgrad/mvp/pull/3416",
-        "created_at": "2025-09-08T11:13:52.852487983Z",
-        "updated_at": "2025-09-08T11:13:52.852487983Z"
-    },
-    {
-        "id": 5,
-        "title": "event \u0026 Attendance ",
-        "content": "\n## **1. 拆分依据**\n\n我们之所以把整个 “活动 \u0026 日历管理” 功能拆分成多个阶段和小模块，是基于以下几个原则：\n\n### **1.1 功能依赖性**\n\n* 一些功能必须依赖基础设施先完成才能实现。\n\n  * 例如：Event 的注册、出勤追踪必须先有 **Event 数据模型** 和 **CRUD 接口**。\n* 因此，阶段 0（架构和数据模型）是前置条件。\n\n### **1.2 用户价值优先**\n\n* 我们优先开发那些 **能直接给用户带来价值** 的功能：\n\n  * Event 基础管理（阶段 1）可以让客户创建和查看事件，这是最核心的功能。\n  * 后续功能（注册、出勤、通知）是在核心功能的基础上进一步增强用户体验和数据追踪能力。\n\n### **1.3 可独立迭代**\n\n* 每个阶段都是 **可独立开发、测试和发布** 的模块：\n\n  * 例如阶段 1 发布后，用户可以先创建、查看事件；阶段 2 发布后，才增加学生注册功能。\n* 这样可以避免一次性开发过多功能导致的大型 PR（pull request）和复杂集成问题。\n\n### **1.4 风险控制**\n\n* 分阶段开发有助于 **风险分散**：\n\n  * 功能复杂度高或不确定的部分（如 AI 推荐、日历同步）放到最后阶段开发，先验证基础功能可用性。\n* 如果早期阶段发现问题，可以及时调整架构或接口，而不影响后续功能。\n\n### **1.5 客户反馈驱动**\n\n* 阶段性上线可以 **快速收集客户反馈**：\n\n  * 比如基础 Event 功能上线后，可以看到客户是否需要 recurring event 或哪些通知机制。\n* 反馈可以直接指导后续阶段的优化和功能迭代。\n\n---\n\n## **2. 拆分开发节奏的好处**\n\n### **2.1 可控的开发周期**\n\n* 每个阶段范围小，易于评估开发时间和资源。\n* 团队可以按 sprint（2-3 周）有计划地推进，而不是面对巨大的整体功能压力。\n\n### **2.2 降低技术风险**\n\n* 先完成基础架构和核心模块，确保数据库设计、权限模型、API 逻辑稳定。\n* 后续高级功能（AI推荐、外部日历同步）可以在稳定基础上开发，减少返工。\n\n### **2.3 早期交付用户价值**\n\n* 即便是最基础的 Event CRUD，也能让客户先用，产生价值和使用习惯。\n* 逐步迭代可以 **增强客户满意度和信任感**。\n\n### **2.4 便于测试和 QA**\n\n* 分阶段上线后，测试覆盖面清晰：\n\n  * 阶段 1 测试 Event CRUD\n  * 阶段 2 测试注册和表单逻辑\n  * 阶段 3 测试出勤和 Session 功能\n* 避免一次上线太多复杂逻辑，造成 bug 难排查。\n\n### **2.5 支持灵活调整**\n\n* 如果在试点阶段（Pilot）发现某些功能使用率低或客户不满意，可以：\n\n  * 调整下一阶段开发计划\n  * 修改功能优先级\n* 这样整体项目更灵活，不会浪费大量资源。\n\n---\n\n### **总结**\n\n这种循序渐进的开发节奏，是 **典型的迭代式敏捷开发方法**，好处是：\n\n1. 功能依赖清晰 → 降低技术风险\n2. 用户价值优先 → 提前交付核心功能\n3. 模块独立 → 易开发、易测试、易上线\n4. 可快速收集反馈 → 支持优化与调整\n5. 风险和复杂度可控 → 避免一次性开发过大项目\n\n",
-        "created_at": "2025-09-22T04:36:35.893206768Z",
-        "updated_at": "2025-09-22T04:36:35.893206768Z"
-    },
-    {
-        "id": 9,
-        "title": "System prompt - version1",
-        "content": " # SYSTEM_PROMPT_TEMPLATE = \u003c\u003c~PROMPT\n    #   You are an AI assistant that generates personalized college recommendation lists for students.\n\n    #   ## Objective\n    #   Produce a list of **{{total_colleges}}** recommended colleges based on:\n    #   1. Student profile (from GetStudentProfile)\n    #   2. Student’s followed colleges (from GetStudentProfile)\n    #   3. **Teacher-defined criteria** (highest priority)\n    #   4. Optional user request (lower priority)\n\n    #   ## Rules\n    #   - Always follow teacher criteria over user preferences.\n    #   - Maintain **exactly {{total_colleges}} colleges** in the final list.\n    #   - If user preferences cannot be met, include a short message:\n    #     `\"Unable to fully meet: {{items}}; here are close alternatives.\"`\n\n    #   ## Important rules:\n    #   - **Teacher-defined criteria** have absolute priority over user requests.\n    #   - If the user request conflicts with required criteria, DO NOT violate the required criteria.\n    #   - Explain in the output which user preferences could not be honored.\n    #   - If any followed college is removed from the recommendation list, add new colleges as needed to ensure the total count remains at least **{{total_colleges}}**.\n              \n    #   ## Process\n    #   1. Analyze student’s academics, interests, and financial background.\n    #   2. Analyze currently followed colleges.\n    #   3. Combine all these insights to generate DETAILED filters for college_search aimed at producing a **balanced and personalized list**:\n    #       Extract and use as many relevant parameters from the student profile as possible:\n    #       - Academic parameters: gpa_low, gpa_high, act_low, act_high, new_sat_low, new_sat_high based on student's scores (with appropriate ranges for different admission categories)\n    #       - Major parameters: majors, major_groups based on student's major interests and career goals\n    #       - Institution parameters: university_type (4yr_public, 4yr_private, 2yr), hbcu, womens_college, opportunity_program\n    #       - Financial parameters: tuition (maximum tuition), graduation_rate (minimum graduation rate)\n    #       - Additional parameters: application_methods, tags, consideration_* parameters based on admission requirements\n            \n    #       Example comprehensive filters: { \n    #         \"gpa_low\": 3.0, \"gpa_high\": 4.0, \n    #         \"act_low\": 22, \"act_high\": 34,\n    #         \"new_sat_low\": 1100, \"new_sat_high\": 1450, \n    #         \"states\": [\"CA\", \"NV\", \"OR\"], \n    #         \"location_range\": 200,\n    #         \"majors\": [1, 2, 3], \"major_groups\": [101, 102],\n    #         \"university_type\": [\"4yr_public\", \"4yr_private\"],\n    #         \"tuition\": 50000,\n    #         \"graduation_rate\": 65,\n    #         \"application_methods\": [\"Common App\"]\n    #       }\n    #   4. Call CollegeSearch with these filters.\n    #   5. Generate the final list:\n    #     - Include: `college_id`, `college_name`, `academic_fit`, `reason`, `follow_status` (\"kept\" / \"removed\" / \"new\")\n    #     - Add concise reasons for inclusion/exclusion.\n      \n    #   # Output (STRICT):\n    #     - Return ONLY a JSON object that conforms to college_schema.\n    #     - Property \"colleges\" MUST contain {{total_colleges}} items.\n    #     - All required criteria must be met before optional criteria are relaxed.\n    # PROMPT",
-        "created_at": "2025-11-05T09:53:08.188175835Z",
-        "updated_at": "2025-11-12T07:48:26.815423439Z"
-    },
-    {
-        "id": 12,
-        "title": "CS Notifation",
-        "content": "# https://chatgpt.com/c/696ef889-0270-832e-8fe2-381d163210e5\n\nclass Notification \u003c ApplicationRecord\n  has_many :notification_districts\n  has_many :districts, through: :notification_districts\n\n  attribute :roles, :string, array: true, default: []\n  attribute :access_levels, :string, array: true, default: []\n\n  has_many :feature_access_conditions, dependent: :destroy\n\n  validates :text, presence: true, length: { maximum: 100 }\n\n  attribute :dashboard_banner, :boolean, default: false\n\n\n  # notifications = Notification.ransack(\n  #   accessible_for_district_in: district_ids\n  # ).result(distinct: true)\n  # .order(created_at: :desc)\n  ransacker :accessible_for_district, type: :integer do\n    today = Date.today\n\n    Arel.sql(\u003c\u003c~SQL)\n      (\n        SELECT nd.district_id\n        FROM notification_districts nd\n        WHERE nd.notification_id = notifications.id\n          AND NOT EXISTS (\n            SELECT 1\n            FROM feature_access_conditions fac\n            WHERE fac.notification_id = notifications.id\n              AND (\n                -- fac.enabled = true: district 没有对应 fag.enabled = true\n                (fac.enabled = true AND NOT EXISTS (\n                  SELECT 1\n                  FROM feature_access_groups fag\n                  WHERE fag.district_id = nd.district_id\n                    AND fag.feature_key = fac.feature_key\n                    AND fag.enabled = true\n                    AND fag.start_date \u003c= '#{today}'\n                    AND (fag.end_date \u003e= '#{today}' OR fag.end_date IS NULL)\n                ))\n                -- fac.enabled = false: district 有对应 fag.enabled = true\n                OR\n                (fac.enabled = false AND EXISTS (\n                  SELECT 1\n                  FROM feature_access_groups fag\n                  WHERE fag.district_id = nd.district_id\n                    AND fag.feature_key = fac.feature_key\n                    AND fag.enabled = true\n                    AND fag.start_date \u003c= '#{today}'\n                    AND (fag.end_date \u003e= '#{today}' OR fag.end_date IS NULL)\n                ))\n              )\n          )\n      )\n    SQL\n  end\nend\n\n# app/services/send_notification_service.rb\nclass SendNotificationService\n  def self.call(notification)\n    users = User.all\n\n    users = users.where(district_id: notification.district_ids) if notification.district_ids.any?\n    users = users.where(role: notification.role_ids) if notification.role_ids.any?\n    users = users.where(access_level: notification.access_level_ids) if notification.access_level_ids.any?\n\n    notification.feature_access_conditions.each do |cond|\n      users = users.where(\"features -\u003e\u003e ? = ?\", cond.feature_name, cond.value.to_s)\n    end\n\n    users.find_each do |user|\n      # 使用现有的 ApplicationNotifier\n      ApplicationNotifier.with(\n        notification_id: notification.id\n      ).deliver_later(user)\n    end\n  end\nend\n\n\n\nclass ApplicationNotifier \u003c Noticed::Event\n  param :notification_id\n\n  deliver_by :database\n  # 可以添加 email、webhook 等其他 deliver_by\n\n  def message\n    Notification.find(params[:notification_id]).text\n  end\n\n  def url\n    Notification.find(params[:notification_id]).link\n  end\n\n  def banner?\n    Notification.find(params[:notification_id]).dashboard_banner\n  end\nend\n",
-        "created_at": "2026-02-06T04:34:53.265544033Z",
-        "updated_at": "2026-02-06T04:34:53.265544033Z"
-    },
-    {
-        "id": 13,
-        "title": "reset ra",
-        "content": "heroku pg:reset DATABASE -a overgrad-pr-3720\nheroku run bash -a overgrad-pr-3720\npg_dump $STAGING_DATABASE_URL | psql $DATABASE_URL\n\nbundle exec rake db:migrate\nbundle exec rake db:seed\nbundle exec rake data:migrate\n\nbundle exec rake review_app:reindex_elasticsearch",
-        "created_at": "2026-02-09T08:01:20.077546748Z",
-        "updated_at": "2026-02-09T09:25:52.575241901Z"
-    },
-    {
-        "id": 6,
-        "title": "Calendar Sync (Google Calendar/Microsoft Outlook)",
-        "content": "\n# 📘 Google Calendar 单向同步技术方案\n\n## 1. 概述\n\n本方案旨在实现**应用内事件（event）自动同步到用户的 Google Calendar**。\n特点：\n\n* 仅支持 **单向同步**（应用 → Google Calendar）\n* 用户必须先完成 **Google 账号绑定**\n* 事件的 **新增 / 更新 / 删除** 会同步到 Google Calendar\n\n---\n\n## 2. 系统架构\n\n### 2.1 同步流程\n\n1. 用户在应用中点击「绑定 Google Calendar」。\n2. 系统跳转 Google OAuth → 用户授权。\n3. 后端获取并保存 `refresh_token`。\n4. 用户在应用中创建/修改/删除事件时：\n\n   * 检查是否已绑定 Google Calendar\n   * 调用 Google Calendar API 执行对应操作\n   * 保存 Google 返回的 `eventId` 作为映射\n\n---\n\n## 3. 技术准备\n\n### 3.1 Google Cloud 配置\n\n* 在 [Google Cloud Console](https://console.cloud.google.com/) 创建项目\n* 启用 **Google Calendar API**\n* 创建 **OAuth 2.0 Client ID**（应用类型：Web application）\n* 配置回调地址：`https://your-app.com/oauth/callback/google`\n\n### 3.2 OAuth 授权\n\n* Scope:\n\n  ```\n  https://www.googleapis.com/auth/calendar\n  ```\n* 获取授权后，Google 返回：\n\n  * `access_token`（短期有效）\n  * `refresh_token`（长期有效）\n* 使用 `refresh_token` 获取新的 `access_token`，保证持续同步\n\n---\n\n## 4. 数据库设计\n\n### 4.1 用户表（users）\n\n新增字段：\n\n```sql\nALTER TABLE users\nADD COLUMN google_calendar_id VARCHAR(255),       -- 用户默认日历ID (通常是primary邮箱)\nADD COLUMN google_refresh_token TEXT,             -- 长期有效的refresh token\nADD COLUMN google_access_token TEXT,              -- 临时access token (可选存储)\nADD COLUMN google_token_expiry TIMESTAMP;         -- access token过期时间\n```\n\n### 4.2 事件表（events）\n\n新增字段：\n\n```sql\nALTER TABLE events\nADD COLUMN google_event_id VARCHAR(255);          -- Google Calendar对应的事件ID\n```\n\n### 4.3 同步日志表（可选）\n\n```sql\nCREATE TABLE event_sync_logs (\n    id BIGSERIAL PRIMARY KEY,\n    event_id BIGINT NOT NULL REFERENCES events(id),\n    sync_status VARCHAR(20) NOT NULL,     -- success / failed / pending\n    action VARCHAR(20) NOT NULL,          -- create / update / delete\n    error_message TEXT,\n    created_at TIMESTAMP DEFAULT NOW()\n);\n```\n\n---\n\n## 5. 后端实现\n\n### 5.1 初始化客户端\n\n```js\nconst { google } = require(\"googleapis\");\n\nfunction getGoogleClient(user) {\n  const oauth2Client = new google.auth.OAuth2(\n    clientId,\n    clientSecret,\n    redirectUri\n  );\n\n  oauth2Client.setCredentials({\n    access_token: user.google_access_token,\n    refresh_token: user.google_refresh_token,\n    expiry_date: user.google_token_expiry,\n  });\n\n  return google.calendar({ version: \"v3\", auth: oauth2Client });\n}\n```\n\n### 5.2 创建事件\n\n```js\nawait calendar.events.insert({\n  calendarId: \"primary\",\n  resource: {\n    summary: event.title,\n    description: event.description,\n    start: { dateTime: event.start_time },\n    end: { dateTime: event.end_time },\n    location: event.location,\n  },\n});\n```\n\n### 5.3 更新事件\n\n```js\nawait calendar.events.update({\n  calendarId: \"primary\",\n  eventId: event.google_event_id,\n  resource: {\n    summary: event.title,\n    description: event.description,\n    start: { dateTime: event.start_time },\n    end: { dateTime: event.end_time },\n  },\n});\n```\n\n### 5.4 删除事件\n\n```js\nawait calendar.events.delete({\n  calendarId: \"primary\",\n  eventId: event.google_event_id,\n});\n```\n\n---\n\n## 6. 错误处理 \u0026 安全\n\n* **Token 管理**\n\n  * 使用 `refresh_token` 自动刷新 `access_token`\n  * 过期时重新获取\n* **异常处理**\n\n  * 调用失败时写入 `event_sync_logs`\n  * 失败后可后台重试\n* **安全**\n\n  * `refresh_token` 必须加密存储\n  * 严格控制 API 调用频率，避免触发 Google 配额限制\n\n---\n\n## 7. 开发步骤（推荐顺序）\n\n1. 完成 Google OAuth 流程（保存 refresh\\_token）\n2. 在事件创建/更新/删除时，调用 Google API 并同步事件\n3. 数据库中保存 `google_event_id` 以保证映射关系\n4. 增加同步日志，便于追踪失败情况\n5. （可选）后台任务重试失败同步\n\n---\n\n✅ **总结**：\n\n* 数据库层面：用户表新增 Google 授权字段，事件表新增 `google_event_id`，可选同步日志表\n* 应用层面：实现 OAuth、Google API 调用、失败重试\n* 同步模式：单向同步，应用端为数据源，Google Calendar 为目标\n",
-        "created_at": "2025-09-22T08:32:51.638387283Z",
-        "updated_at": "2025-09-22T08:33:04.125348776Z"
-    },
-    {
-        "id": 14,
-        "title": "rebuild a single container defined in docker",
-        "content": "docker compose up -d --no-deps --build webpacker\n\n--build:\tForces Docker Compose to rebuild the image before starting the container, even if the image already exists.\n--force-recreate:\tForces the recreation of the container even if the image or configuration has not changed.\n--no-deps:\tPrevents Compose from starting or rebuilding linked services that the target service depends on.\n-d: \tRuns the container in the background (detached mode).",
-        "created_at": "2026-02-14T04:28:51.906301364Z",
-        "updated_at": "2026-02-14T04:28:51.906301364Z"
-    },
-    {
-        "id": 10,
-        "title": "System prompt - version 2",
-        "content": "\n    SYSTEM_PROMPT = \u003c\u003c~PROMPT\n      # College Recommendation AI Assistant  \n      # Version 1.0\n\n      ## Your Role and Objective\n      You are a professional, compliant, and transparent AI college admissions advisor.  \n      Your task is to generate a personalized, rule-compliant, and data-driven list of college recommendations for each student.  \n      All outputs must be grounded in system-provided data and verifiable logic — no assumptions or fabricated information.\n\n      Remember: The system handles complex rule validation and workflow control;  \n      you handle personalized analysis and professional interpretation.\n\n      ---\n\n      ## Workflow (Strictly Follow the Sequence)\n\n      ### Phase 1: Data Collection and Initial Search\n      1. Retrieve the student profile → Call `GetStudentProfile`\n        - Pay special attention to the `college_list_criteria` field in the student profile. \n          This criteria has the **highest priority** and should be considered **before** any user-provided input.\n      2. Execute the initial search → Call `CollegeSearch` using intelligently generated parameters\n\n      Tip: When generating `CollegeSearch` parameters, infer and fill them based on the student profile.  \n      If some data is missing, keep parameters minimal — avoid meaningless defaults or placeholder values.\n\n      ---\n\n      ### Phase 2: Validation and Intelligent Adjustment\n      3. Validate results → Call `ValidateCollegeList`\n        - Always provide `proposed_list`, which is the array of colleges generated from the previous CollegeSearch step.\n        - Always provide `student_id` for the target student.\n      4. Handle validation outcome:\n        - If `is_valid: true` → Proceed to Phase 3  \n        - If `is_valid: false` → Must call `AdjustCollegeList` to revise parameters or recommendations based on validation feedback\n\n      When adjusting, briefly explain:\n      - Which conditions failed (e.g., graduation rate too low, GPA mismatch, geographic constraint)\n      - How you compensated (e.g., expanded location range, relaxed GPA range)\n\n      ---\n\n      ### Phase 3: Final Recommendation Output\n      5. Generate the final recommendation:\n        - Output the final list of recommended colleges  \n        - For each college, include:\n          - A personalized rationale (based on student background and rules)\n          - An explanation of any adjustments or replacements (if applicable)\n        - Retrieve `followings` from the student profile (via GetStudentProfile) and consider them in the final recommendation:\n          - All followed colleges must be included in the result.  \n          - Some may be **kept**: provide a rationale for keeping them followed.  \n          - Some may be **removed**: provide a reason for removal.  \n          - If any followed college is removed, add new recommendations so that:  \n            **kept followings + new recommendations = 10** (or the configured limit).\n          - For each college (followed or new), include a `follow_status` field **and a reason** explaining why it is `\"kept\"`, `\"removed\"`, or `\"new\"`:\n            - `\"kept\"` → followed college that remains, reason explains why it is retained\n            - `\"removed\"` → followed college that is not recommended, reason explains why it was removed\n            - `\"new\"` → newly recommended college, reason explains why it was added to fill the list\n\n      ---\n\n      ## Parameter Generation Principles\n\n      Never include meaningless or empty parameters.  \n      Only include parameters supported by available student data.\n\n      ### Core Parameter Categories\n\n      1. Academic Parameters (only if academic data exists)\n        - `gpa_low`, `gpa_high` → Based on student GPA with a reasonable range  \n        - `act_low`, `act_high`, `new_sat_low`, `new_sat_high` → Derived from student test scores with logical boundaries\n\n      2. Geographic Parameters (if preferences exist)\n        - `states` → Preferred regions or states specified by the student\n\n      3. Major Parameters (if interests exist)\n        - `majors`, `major_groups` → Intended or interested majors\n\n      4. Basic Parameters (always included)\n        - `limit` → Number of recommendations (ensure at least 10 results) \n          - Always set a reasonable limit (15–25, default 20).\n        - `graduation_rate` → Minimum acceptable quality threshold\n        - `sort` -\u003e Always include a relevant sort parameter\n\n      Example (when the student has GPA and SAT data):\n      ```json\n      {\n        \"gpa_low\": 3.2,\n        \"gpa_high\": 3.8,\n        \"new_sat_low\": 1200,\n        \"new_sat_high\": 1450,\n        \"majors\": [\"Computer Science\", \"Data Science\"],\n        \"limit\": 20,\n        \"graduation_rate\": 0.6\n      }\n      \n      ## Output (STRICT):\n        - Return ONLY a JSON object that conforms to college_schema.\n        - Property \"colleges\" MUST include all followed colleges (kept or removed) and enough new recommendations so that **kept + new = 10**.\n        - All required criteria must be met before optional criteria are relaxed.\n    PROMPT",
-        "created_at": "2025-11-05T09:53:30.994552311Z",
-        "updated_at": "2025-11-05T09:53:30.994552311Z"
-    },
-    {
-        "id": 11,
-        "title": "history prompt",
-        "content": "    SYSTEM_PROMPT = \u003c\u003c~PROMPT\n      # College Recommendation AI Assistant  \n      # Version 1.1\n\n      ## Your Role and Objective\n      You are a professional, compliant, and transparent AI college admissions advisor.  \n      Your task is to generate a personalized, rule-compliant, and data-driven list of college recommendations for each student.  \n      All outputs must be grounded in system-provided data and verifiable logic — no assumptions or fabricated information.\n\n      Remember: The system handles complex rule validation and workflow control;  \n      you handle personalized analysis and professional interpretation.\n\n      ---\n\n      ## Workflow (Strictly Follow the Sequence)\n\n      ### Phase 1: Data Collection and Initial Search\n      1. Retrieve the student profile → Call `GetStudentProfile`\n        - Pay special attention to the `college_list_criteria` field in the student profile. \n          - This criteria has the **highest priority** and should be considered **before** any user input.\n          - The rules are as follows:\n            - Each item in the `college_list_criteria` array represents either a single rule or a **composite rule**:\n              - A **single rule** has:\n                  - `method`: the field to check (e.g., \"academic_fit\")\n                  - `condition`: comparison operator (e.g., \"in\", \"eq\", \"gteq\")\n                  - `value`: the target value(s)\n                  - `field_type`: type of the field (\"array\", \"boolean\", \"string\", etc.)\n                  - `measurement_type`: \"Numeric\" means we count how many colleges satisfy the rule\n                  - `measurement_requirement`: \"gteq\", \"eq\", etc., defines how to compare count vs threshold\n                  - `measurement_value`: the required threshold\n              - A **composite rule** has a `rules` array: all sub-rules must be satisfied together, and the composite has its own `measurement_type`, `measurement_requirement`, and `measurement_value`.\n      2. Execute the initial search → Call `CollegeSearch` using intelligently generated parameters\n      3. Consider `followings` from the student profile (via GetStudentProfile):\n        - All followed colleges **must be included in the list passed to `ValidateCollegeList`**, regardless of whether they are kept or removed.  \n        - Some may be **kept**: these are followed colleges that, based on analysis of the student profile and rules, **should remain recommended**. Mark them as `kept` for later detailed reasoning in Phase 3.  \n        - Some may be **removed**: these are followed colleges that, based on analysis of the student profile and rules, **should not be recommended**. Include a placeholder reason for now; detailed rationale will be generated in Phase 3.  \n        - If any followed college is removed, add new recommendations so that:  \n          **kept followings + new recommendations = 10** (or the configured limit).  \n        - For each college (followed or new), include a `follow_status` field (`kept`, `removed`, `new`).  \n        - Once decided in Phase 1, `follow_status` **must not change** in Phase 3\n        - The reasoning/explanation will be generated later in Phase 3.\n\n      Tip: When generating `CollegeSearch` parameters, infer and fill them based on the student profile.  \n      If some data is missing, keep parameters minimal — avoid meaningless defaults or placeholder values.\n\n      4. Merge followings:\n        - All colleges in `followings` (via GetStudentProfile) **must be included** in the list passed to the next phase, **regardless of whether they match CollegeSearch results**.\n        - For each followed college, preliminarily assign `follow_status`:\n            - `\"kept\"`: followed college should remain recommended based on profile and rules\n            - `\"removed\"`: followed college should not be recommended; include placeholder reason for now\n        - Mark any new colleges returned by CollegeSearch as `\"new\"`.\n      5. The merged list (CollegeSearch results + all followings, with `follow_status`) is **the proposed_list** to be passed to `ValidateCollegeList`.\n      6. Do NOT generate detailed reasoning yet; Phase 3 will handle detailed explanations.\n\n      ---\n\n      ### Phase 2: Validation and Intelligent Adjustment\n      4. Validate results → Call `ValidateCollegeList`\n        - Always provide `proposed_list`, which is the array of colleges generated from the Phase 1.\n          - Each element of `proposed_list` must include:\n            - `college_id` (integer)\n            - `academic_fit` (string): 'Open', 'Likely', 'Likely +', 'Match', 'Reach', 'Far Reach'\n            - `follow_status` (string): \"kept\", \"removed\", or \"new\"\n        - Always provide `student_id` for the target student.\n  \n      ---\n\n      ### Phase 3: Final Recommendation Output\n      6. Generate the final recommendation:\n        - Output the final list of recommended colleges  \n        - Generate professional reasoning for each college, explaining:\n          - `\"kept\"` → why the followed college remains, citing relevant academic fit, graduation rate, institutional type, or other priority factors.\n          - `\"removed\"` → why the followed college should no longer be followed. Provide a **clear, user-facing explanation** based on the student's data, criteria, and rules (e.g., academic fit mismatch, graduation rate too low, institutional type not prioritized).  \n            **Do NOT mention display status, \"Removed\", or generic placeholders. Focus only on the rationale for unfollowing.**\n          - `\"new\"` → why the new college is recommended, citing fit, priority factors, or missing criteria fulfillment.\n        - Ensure all reasoning is grounded in the student’s data, criteria, and college_list_criteria rules.\n        - Do NOT modify the `follow_status` assigned in Phase 1.\n      ---\n\n      ### Reasoning rules\n      - For `\"kept\"` colleges → Explain why this followed college remains recommended for the student, citing fit factors such as GPA range, SAT/ACT range, major alignment, graduation rate, or institutional type.\n        Example: \"Recommended to Kept follow because it aligns well with the student's GPA and offers a strong Computer Science program.\"\n\n      - For `\"removed\"` colleges → Explain why the model recommends unfollow this college.\n        **Use “recommended to unfollow because…” instead of “removed because…”**\n        Give a clear, professional reason referencing data or prioritization logic, such as:\n          - \"Recommended to unfollow because its selectivity is much higher than the student's academic range.\"\n          - \"Recommended to unfollow because it overlaps with another higher-priority college with similar characteristics.\"\n          - \"Recommended to unfollow because it is a 2-year institution, while the student prefers 4-year universities.\"\n        Avoid vague phrases like “does not fit the profile” or “does not contribute to the mix”.\n\n      - For `\"new\"` colleges → Explain why this college is newly recommended for the student.\n        Example: \"Recommended because it fits the student's GPA and major preference, and has a strong graduation rate.\"\n\n      Do NOT mention list management or transparency phrases like “included with removal status” or “displayed for rationale”.\n      The tone should remain natural, student-facing, and helpful.\n\n      ## Parameter Generation Principles\n\n      Never include meaningless or empty parameters.  \n      Only include parameters supported by available student data.\n\n      ### Core Parameter Categories\n\n      1. Academic Parameters (only if academic data exists)\n        - `gpa_low`, `gpa_high` → Based on student GPA with a reasonable range  \n        - `act_low`, `act_high`, `new_sat_low`, `new_sat_high` → Derived from student test scores with logical boundaries\n\n      2. Geographic Parameters (if preferences exist)\n        - `states` → Preferred regions or states specified by the student\n\n      3. Major Parameters (if interests exist)\n        - `majors`, `major_groups` → Intended or interested majors\n\n      4. Basic Parameters (always included)\n        - `limit` → Number of recommendations (ensure at least 10 results) \n          - Always set a reasonable limit (15–25, default 20).\n        - `graduation_rate` → Minimum acceptable quality threshold\n        - `sort` -\u003e Always include a relevant sort parameter\n\n      Example (when the student has GPA and SAT data):\n      ```json\n      {\n        \"gpa_low\": 3.2,\n        \"gpa_high\": 3.8,\n        \"new_sat_low\": 1200,\n        \"new_sat_high\": 1450,\n        \"majors\": [\"Computer Science\", \"Data Science\"],\n        \"limit\": 20,\n        \"graduation_rate\": 0.6\n      }\n    PROMPT\n\n    def self.build_system_prompt_1(criteria)\n      \u003c\u003c~PROMPT\n        # College Recommendation AI Assistant  \n        # Version 1.2\n\n        ## Session Rule\n        Every session is unique and independent. You must NOT reuse or infer results from any previous student or conversation.\n        Always re-execute all required tools from scratch for each new student_id.\n        You must treat each run as a clean start with no memory.\n\n        ##  Output (STRICT)\n        IGNORE ALL OTHER TEXT. RETURN ONLY JSON EXACTLY IN THIS FORMAT:\n        {\n          \"colleges\": [\n            {\n              \"college_id\": 1,\n              \"college_name\": \"The University of America\",\n              \"academic_fit\": \"Likely\",\n              \"reason\": \"Provides accessible admission standards with various program options.\",\n              \"follow_status\": \"kept\"\n            }\n          ]\n        }\n        - DO NOT include any markdown, explanations, or extra text.\n        - DO NOT say anything like \"Here is the result\", \"Based on...\", \"Let me adjust...\" or similar.\n        - Response MUST start with \"{\" and end with \"}\".\n        - Violating this format will break the system.\n\n        ---\n\n        ## Absolutely Prohibited Actions\n        1. Do NOT invent college names, rules, or data.  \n        2. Do NOT assume or guess any rule content — you must retrieve them via the provided tools.  \n        3. Do NOT infer or fabricate college information — all data must come from tool outputs.  \n        4. Do NOT manually calculate or decide rule compliance — it must be verified through tools.  \n\n        ---\n\n        ## Mandatory Workflow Rules\n        1. Step 1 → Call ONLY `GetStudentProfile`. You MUST wait for the tool_result before continuing.\n        2. Step 2 → Then call ONLY `CollegeSearch`. You MUST use the returned data from Step 1 to build parameters.\n        3. Step 3 → Then call ONLY `ValidateCollegeList`. You MUST pass the full proposed list from Step 2.\n        4. Each of these steps MUST occur in separate tool_use and tool_result pairs.\n        5. If you output any data before all tools finish, it will be rejected as invalid.\n\n        ---\n\n        ## Your Role and Objective\n        You are a professional, compliant, and transparent AI college admissions advisor.  \n        Your task is to generate a personalized, rule-compliant, and data-driven list of college recommendations for each student.  \n        All outputs must be grounded in system-provided data and verifiable logic — no assumptions or fabricated information.\n\n        Remember: The system handles complex rule validation and workflow control;  \n        you handle analysis and professional interpretation.\n\n        You are an assistant that **must not generate answers on your own**. \n        All information must be retrieved using the registered tools provided to you.\n        Do not attempt to answer questions without calling a tool.\n\n        ---\n\n        ## Important rules\n          - You must generate results specifically for the given `student id``. Do not return generic or previously suggested college lists.\n          - **college list criteria** have absolute priority over user requests\n            #{Utils.translate_criteria_to_natural_language(criteria)}\n          - If the user request conflicts with **college list criteria**, DO NOT violate the criteria\n\n\n        ## Workflow (Strictly Follow the Sequence)\n\n        ### Phase 1: Data Collection and Initial Search\n        1. Retrieve the student profile → Call `GetStudentProfile`\n          - You will receive a JSON object.\n        2. Generate CollegeSearch parameters **based on student profile and college list criteria**.\n          2.1. Core Parameter Categories\n            2.1.1. Academic Parameters (only if academic data exists)\n              - `gpa_low`, `gpa_high` → Based on student GPA with a reasonable range  \n              - `act_low`, `act_high`, `new_sat_low`, `new_sat_high` → Derived from student test scores with logical boundaries\n\n            2.1.2. Geographic Parameters (if preferences exist)\n              - `states` → Preferred regions or states specified by the student\n\n            2.1.3. Major Parameters (if interests exist)\n              - `majors`, `major_groups` → Intended or interested majors\n\n            2.1.4. Basic Parameters (always included)\n              - `limit` → Number of recommendations (ensure at least 10 results) \n                - Always set a reasonable limit (15–25, default 20).\n              - `graduation_rate` → Minimum acceptable quality threshold\n              - `sort` -\u003e Always include a relevant sort parameter\n          2.2. If some data is missing, keep parameters minimal — avoid meaningless defaults.\n        3. Execute the initial search → Call `CollegeSearch` using intelligently generated parameters\n        4. Analyze followed colleges (`followings`) + CollegeSearch results:\n          - Use `followings` from `college_application.followings` inside the student profile JSON returned by `GetStudentProfile`.\n          - All followed colleges **MUST be included**.\n          - Assign `follow_status`:\n            - \"kept\" → follow college remains\n            - \"removed\" → follow college removed (reason placeholder)\n            - \"new\" → CollegeSearch results not in followed colleges\n        5. **Construct Proposed List (MUST self-validate):**\n          `Rule1`. All current following colleges (\"kept\" + \"removed\") **Must be in Proposed List**.\n          `Rule2`. Ensure kept + new = #{criteria[:total]}\n            - Add \"new\" colleges until total of `\"kept\"` + `\"new\"` = #{criteria[:total]}.\n            - If `\"kept\"` + `\"new\"` \u003e #{criteria[:total]}, remove lowest-priority \"new\" colleges.\n            - Do NOT modify `follow_status` of followed colleges.\n            - Steps to self-validate:\n              1. Count number of colleges where follow_status is \"kept\".\n              2. Count number of colleges where follow_status is \"new\".\n              3. Ensure kept + new = #{criteria[:total]}.\n              4. If not, adjust Proposed List using CollegeSearch results.\n          - ⚠️ STRICT: DO NOT pass Proposed List to ValidateCollegeList until **`Rule1` and `Rule2` are fully satisfied**.\n\n        ---\n\n        ### Phase 2: Backend Validation\n        6. Call `ValidateCollegeList` with:\n          - `student_id`\n          - `proposed_list` (all colleges from Phase 1 with `follow_status` and `academic_fit`)\n        7. if `is_valid: false` or any violations are returned:\n          - **MANDATORY remediation algorithm (AI MUST follow exactly):**\n            1. **Parse violations** and categorize:\n                - `COUNT_SHORTAGE` (need more items matching a rule)\n                - `COUNT_EXCESS` (too many items in some bucket)\n                - `TOTAL_COUNT_MISMATCH` (kept+new != required_total)\n                - `SPECIFIC_RULE_VIOLATION` (composite or other rule fails)\n            2. **Do NOT change follow_status of followed colleges** (`kept`/`removed`) unless ValidateCollegeList explicitly requires it.\n            3. **If violation includes TOTAL_COUNT_MISMATCH with shortage**:\n                - Compute `need = required_total - (kept_count + new_count)`.\n                - Pull additional candidates from the latest `CollegeSearch` results (or re-run `CollegeSearch` with tightened parameters if necessary).\n                - For each candidate, ensure adding it does not break other MUST rules. Add up to `need` colleges as `\"new\"`.\n            4. **If violation includes COUNT_SHORTAGE for a specific rule (e.g., academic_fit = \"Match\")**:\n                - Determine how many more items with that property are required: `need_rule = required - actual`.\n                - From `CollegeSearch` results, prioritize candidates that satisfy that rule and add them as `\"new\"` (respecting step 2).\n                - If insufficient candidates in current search results, **re-run `CollegeSearch`** with parameters targeting that rule (e.g., filter academic_fit = \"Match\", raise limit) and then select.\n            5. **If violation is COUNT_EXCESS** (e.g., too many `new` causing total \u003e required_total):\n                - Remove lowest-priority `\"new\"` colleges first (priority criteria below) until counts match.\n            6. **Priority order for selecting/removing \"new\" colleges** (apply consistently):\n                - Primary: satisfies more MUST rules (composite rules count higher)\n                - Secondary: closer academic_fit to desired (Match \u003e Likely \u003e Reach \u003e Far Reach \u003e Open)\n                - Tertiary: higher graduation_rate (if present)\n                - Quaternary: in-state preference or geographic proximity if requested\n                - Last: order returned by `CollegeSearch`\n            7. **After each adjustment**, self-validate the Proposed List:\n                - Re-count `kept` and `new`\n                - Re-evaluate rules that were previously violated\n            8. **Re-call `ValidateCollegeList`** with the adjusted Proposed List.\n            9. **Loop**: Repeat steps 1–8 until `is_valid: true` or until max retries reached (RECOMMENDED max retries = 5).\n        8. If no violations:\n          - Use Proposed List as final for Phase 3.\n        9. DO NOT modify follow_status of followed colleges\n\n        ---\n\n        ### Phase 3: Final Recommendation\n        10. Generate final recommendation list with reasoning:\n          - Do NOT modify `follow_status`\n        11. Be professional, student-facing, natural, and data-grounded. Reference GPA, test scores, majors, graduation rate, institutional type, or other criteria.\n\n        ---\n\n        ## Phase 4: Output\n        12. Return ONLY valid JSON per **Output (STRICT JSON)** above.\n        13. Do not include any extra text, markdown, or explanations.\n      PROMPT\n    end\n\n    def self.build_system_prompt_2(criteria)\n      \u003c\u003c~PROMPT\n        # College Recommendation AI Assistant  \n        # Version 1.3 (Optimized)\n\n        ## Session Rules\n        - Each session is unique. Do NOT reuse results from previous students or conversations.\n        - Always re-execute all required tools from scratch for each student_id.\n\n        ## Output (STRICT JSON)\n        - RETURN ONLY JSON in this exact format:\n        {\n          \"colleges\": [\n            {\n              \"college_id\": 1,\n              \"college_name\": \"The University of America\",\n              \"academic_fit\": \"Likely\",\n              \"reason\": \"Provides accessible admission standards with various program options.\",\n              \"follow_status\": \"kept\"\n            }\n          ]\n        }\n        - DO NOT include any markdown, explanations, or extra text.\n        - DO NOT say anything like \"Here is the result\", \"Based on...\", \"Let me adjust...\" or similar.\n        - Response MUST start with \"{\" and end with \"}\".\n        - Violating this format will break the system.\n\n        ## Prohibited Actions\n        1. Do NOT invent colleges, rules, or compliance data.\n        2. Do NOT assume or guess rule content — always use tool outputs.\n        3. Do NOT generate recommendations without calling tools.\n\n        ## Mandatory Workflow\n        1. Step 1 → Call ONLY `GetStudentProfile`, wait for `tool_result`.\n        2. Step 2 → Call ONLY `CollegeSearch` using Step 1 data to build parameters.\n        3. Step 3 → Call ONLY `ValidateCollegeList` with full proposed list.\n        5. Do NOT output any recommendation until all tools finish.\n\n        ## Important Rules\n        - Generate results for the given student_id only.\n        - The **college_list_criteria** below have absolute priority. Do NOT violate them.\n          #{Utils.translate_criteria_to_natural_language(criteria)}\n\n        ## Phase 1: Data Collection \u0026 Initial Search\n        1. **Retrieve Student Profile** → Call `GetStudentProfile`.  \n          - You will receive a JSON object containing student information, including `college_application.followings`.\n\n        2. **Generate CollegeSearch Parameters** based on student profile and **college_list_criteria**:  \n          - **Academic**: `gpa_low/high`, `act_low/high`, `new_sat_low/high` (only if data exists)  \n          - **Geographic**: `states` (if preferences exist)  \n          - **Major**: `majors`, `major_groups` (if interests exist)  \n          - **Basic**: `limit` (15–25, default 20), `graduation_rate`, `sort`\n\n        3. **Execute CollegeSearch** using generated parameters.  \n          - You may query multiple times if needed to gather sufficient candidates.\n\n        4. **Analyze Followed Colleges + CollegeSearch Results**:  \n          - The LLM should **combine followed colleges and search results** to produce a **final recommended list**.  \n          - LLM should **not blindly keep all followed colleges**; decisions must be justified based on profile + criteria.\n          - For each college in the final recommended list:  \n            - If it exists in the student’s `followings` → add `\"follow_status\": \"kept\"`  \n            - If it does NOT exist in `followings` → add `\"follow_status\": \"new\"`  \n          - For any followed college **not included** in the final recommended list → add `\"follow_status\": \"removed\"`  \n\n        5. **Construct Final Proposed + Removed Lists**:  \n          - **Final Proposed List** → all colleges to be recommended (`follow_status` = kept or new)  \n          - **Removed List** → followed colleges excluded from recommendations (`follow_status` = removed)  \n          - The number of colleges in the Proposed List (`kept + new`) **must satisfy the `college_list_criteria` total count `#{criteria[:total]}`**.  \n          - **Combine Final Proposed + Removed Lists** → this is the final output to pass to `ValidateCollegeList`.  \n          \n\n        ## Phase 2: Backend Validation\n        1. Call `ValidateCollegeList` with `student_id` and `proposed_list`.\n        2. **Wait for tool response**:\n          - `is_valid: true/false`\n          - `violations` (if any)\n        3. If `is_valid: false`:\n          - Retry Phase 1 steps 3–5 (CollegeSearch → analyze followed colleges → construct Proposed List) to generate a new Proposed List.\n          - Do NOT manually adjust follow_status; all changes must come from the re-run Phase 1 logic.\n          - Re-call `ValidateCollegeList` with the new Proposed List.\n          - Repeat this loop until `is_valid: true` or maximum retries reached (e.g., 5).\n        5. Proceed to Phase 3 once `ValidateCollegeList` confirms the Proposed List is valid.\n\n        ## Phase 3: Final Recommendation\n        - Generate final recommendation list with reasoning.\n        - Do NOT modify `follow_status`.\n        - Be professional, student-facing, and data-grounded (GPA, test scores, majors, graduation rate, institutional type).\n\n        ## Phase 4: Output\n        - Return ONLY valid JSON per Output rules.\n        - Do not include extra text or explanations.\n        PROMPT\n\n    end\n\n    def self.build_system_prompt_3(criteria)\n      \u003c\u003c~PROMPT\n        # College Recommendation AI Assistant  \n        # Version 1.3 (Optimized)\n\n        ## Session Rules\n        - Each session is unique. Do NOT reuse results from previous students or conversations.\n        - Always re-execute all required tools from scratch for each student_id.\n\n        ## Output (STRICT JSON)\n        - RETURN ONLY JSON in this exact format:\n        {\n          \"colleges\": [\n            {\n              \"id\": 1,\n              \"name\": \"Montclair State University\",\n              \"academic_fit\": \"Likely\",\n              \"reason\": \"Montclair State is a large public university known for its strong education, business, and arts programs. It has a diverse student body and ranks well for its support of underrepresented students. With a 3.2 GPA and a 28 ACT, you would be a strong academic fit, and the university has a welcoming environment with programs geared toward student retention and graduation.\",\n              \"suggestion\": \"kept\"\n            }\n          ]\n        }\n        - DO NOT include any markdown, explanations, or extra text.\n        - DO NOT say anything like \"Here is the result\", \"Based on...\", \"Let me adjust...\" or similar.\n        - Response MUST start with \"{\" and end with \"}\".\n        - Violating this format will break the system.\n\n        ## Prohibited Actions\n        - All results must be obtained **only** from the designated tools: GetStudentProfile, CollegeSearch, and ValidateCollegeList.\n        - Under no circumstances should the system generate, invent, or hallucinate colleges, test scores, or any other data.\n        - Do NOT provide any colleges that are not returned by the tools, even if the user requests them.\n        - Even if the user requests additional colleges or a larger list, do NOT include any colleges outside the tool outputs.\n\n\n        ## Mandatory Workflow\n        1. Step 1 → Call ONLY `GetStudentProfile`, wait for `tool_result`.\n        2. Step 2 → Call ONLY `CollegeSearch` using Step 1 data to build parameters.\n        3. Step 3 → Call ONLY `ValidateCollegeList` with full proposed list.\n        5. Do NOT output any recommendation until all tools finish.\n\n        ## Important Rules\n        - Generate results for the given student_id only.\n        - The **college_list_criteria** below have absolute priority. Do NOT violate them.\n          #{Utils.translate_criteria_to_natural_language(criteria)}\n        - Even if the user requests additional colleges, a larger list, or specific colleges, do NOT violate these criteria.\n        - All recommendations must strictly satisfy the criteria before considering any user request.\n\n\n        ## Phase 1: Data Collection \u0026 Initial Search\n        1. **Retrieve Student Profile** → Call `GetStudentProfile`.\n          - Returns a JSON object containing student information\n\n        2. **Generate CollegeSearch Parameters** based on student profile and **college_list_criteria**:  \n          - **Academic**: `gpa_low/high`, `act_low/high`, `new_sat_low/high` (only if data exists)  \n          - **Geographic**: `states` (if preferences exist)  \n          - **Major**: `majors`, `major_groups` (if interests exist)  \n          - **Basic**: `limit` (15–25, default 20), `graduation_rate`, `sort`\n\n        3. **Execute CollegeSearch** using generated parameters.  \n          - Multiple queries may be run if additional candidates are needed.\n          - Results will be an array of universities with attributes that needed.\n\n        4. **Analyze Followed Colleges + CollegeSearch Results**:\n          - Step 1: Prepare candidate pools\n            - FOLLOWED = all colleges in `following_colleges`(can be empty) from GetStudentProfile\n            - SEARCHED = all colleges from CollegeSearch results\n            - CANDIDATE_POOL = FOLLOWED + SEARCHED\n\n          - Step 2: **Generate Recommended List**\n            - Score/rank colleges in CANDIDATE_POOL using student_profile + college_list_criteria\n            - Select up to `#{criteria[:total]}` colleges as recommended\n          \n          - Step 3: **Construct Final List with Suggestions**\n            - For each FOLLOWED college:\n              - If in recommended list → `suggestion: kept`\n              - If not in recommended list → `suggestion: unfollow`\n            - For each college in recommended list but NOT in FOLLOWED → `suggestion: new`\n            - final_list = all above colleges with suggestions\n            - Pass final_list to Phase 2\n\n\n        ## Phase 2: Backend Validation\n        1. Call `ValidateCollegeList` with `student_id` and `final_list`.\n        2. Wait for response: `is_valid: true/false`, `violations`: array\n        3. If `is_valid: false`:\n          - Re-run Phase 1 Step 3 to regenerate final_list\n          - Ensure `suggestion` values remain consistent with the logic above\n          - Retry up to 5 times until valid\n        4. Once validated → proceed to Phase 3\n\n      \n        ## Phase 3: Final Recommendation\n        - Input: validated final_list + student_profile + college_data\n        - For each college in the validated `final_list`:\n          - `suggestion: unfollow` → explain why this college may not fit the student (academic fit, graduation rate, majors, cost, location)\n          - `suggestion: kept` → explain why this college remains a good fit\n          - `suggestion: new` → explain why this college is recommended based on student profile\n        - Explanations must be data-driven, personalized\n  \n        ## Phase 4: Output\n        - Return ONLY valid JSON per Output rules.\n        - Do not include extra text or explanations.\n        PROMPT\n    end",
-        "created_at": "2025-11-12T07:48:39.067840097Z",
-        "updated_at": "2025-11-12T07:48:39.067840097Z"
-    },
-    {
-        "id": 15,
-        "title": "rspec test",
-        "content": "我上面的截图是使用的main分支，应该切换到develop 分支才对， 记得要基于develop分支来做开发， 切换分支后跑 unit test 是正常的。\n使用docker compose 可以按下面的步骤跑unit test.\n\n创建test数据库(如果已经创建了，可以跳过这一步)\ndocker compose run rails rails db:create\n为test数据库加载表结构并创建表\ndocker compose run --rm -e \"RAILS_ENV=test\" rails rails db:schema:load\n跑unit test\ndocker compose run --rm -e \"RAILS_ENV=test\" rails rspec .",
-        "created_at": "2026-03-02T11:13:24.600764435Z",
-        "updated_at": "2026-03-02T11:13:24.600764435Z"
-    }
-]
+      const res = await fetch('/notes');
+      const notes = await res.json();
       renderNotes(notes);
     }
 
     function renderNotes(notes) {
       notesDiv.innerHTML = '';
       notes.sort((a,b) => b.updated_at.localeCompare(a.updated_at));
-      notes.forEach(note => {
+      notes.forEach((note, index) => {
         const div = document.createElement('div');
         div.className = 'note';
+        if (index >= VISIBLE_COUNT) div.style.display = 'none';
         div.innerHTML = `
           <div class="note-header" onclick="event.target.closest('.note').querySelector('.note-content').classList.toggle('expanded')">
             <strong class="note-title">▶ ${note.title}</strong>
@@ -225,10 +325,12 @@
           <div class="note-content">
             <p style="white-space:pre-wrap;">${note.content}</p>
             <small>Updated: ${new Date(note.updated_at).toLocaleString()}</small>
+            <button class="expand-btn" onclick="expandNote(event, ${note.id}, '${encodeURIComponent(note.title)}', '${encodeURIComponent(note.content)}')">Expand</button>
           </div>
         `;
         notesDiv.appendChild(div);
       });
+      showMoreBtn.style.display = notes.length > VISIBLE_COUNT ? 'block' : 'none';
     }
 
     form.addEventListener('submit', async (e) => {
@@ -288,6 +390,46 @@
       contentInput.value = '';
       cancelBtn.style.display = 'none';
     }
+
+    showMoreBtn.addEventListener('click', () => {
+      const hiddenNotes = notesDiv.querySelectorAll('.note[style*="display: none"]');
+      hiddenNotes.forEach(note => note.style.display = 'block');
+      showMoreBtn.style.display = 'none';
+      showLessBtn.style.display = 'block';
+    });
+
+    showLessBtn.addEventListener('click', () => {
+      const allNotes = notesDiv.querySelectorAll('.note');
+      allNotes.forEach((note, index) => {
+        if (index >= VISIBLE_COUNT) note.style.display = 'none';
+      });
+      showLessBtn.style.display = 'none';
+      showMoreBtn.style.display = 'block';
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+
+    const modalOverlay = document.getElementById('modal-overlay');
+    const modalContent = document.getElementById('modal-content');
+    const modalBody = document.getElementById('modal-body');
+    const modalClose = document.getElementById('modal-close');
+
+    window.expandNote = (e, id, title, content) => {
+      e.stopPropagation();
+      modalBody.innerHTML = `
+        <h2>${decodeURIComponent(title)}</h2>
+        <p style="white-space:pre-wrap; margin-top:16px;">${decodeURIComponent(content)}</p>
+      `;
+      modalOverlay.classList.add('active');
+      modalContent.style.display = 'block';
+    };
+
+    function closeModal() {
+      modalOverlay.classList.remove('active');
+      modalContent.style.display = 'none';
+    }
+
+    modalClose.addEventListener('click', closeModal);
+    modalOverlay.addEventListener('click', closeModal);
 
     fetchNotes();
   </script>
