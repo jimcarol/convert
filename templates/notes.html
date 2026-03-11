@@ -34,14 +34,8 @@
       background: #fafafa;
       transition: all 0.3s ease;
     }
-    #note-form.focus-mode textarea {
+    textarea.has-content {
       min-height: 60vh;
-    }
-    #exit-focus {
-      display: none;
-    }
-    .focus-overlay {
-      display: none;
     }
 
     /* 4) Inputs never overflow the form now */
@@ -244,8 +238,6 @@
     <button class="modal-close" id="modal-close">Close</button>
     <div id="modal-body"></div>
   </div>
-  <div class="focus-overlay"></div>
-  <button id="exit-focus">Press ESC to exit</button>
   <div class="container">
     <h1>📒 Online Notes</h1>
 
@@ -273,28 +265,13 @@
     const cancelBtn = document.getElementById('cancel-edit');
     const showMoreBtn = document.getElementById('show-more');
     const showLessBtn = document.getElementById('show-less');
-    const exitFocusBtn = document.getElementById('exit-focus');
-    const overlay = document.querySelector('.focus-overlay');
     const VISIBLE_COUNT = 5;
 
-    function enterFocusMode() {
-      form.classList.add('focus-mode');
-    }
-
-    function exitFocusMode() {
-      form.classList.remove('focus-mode');
-    }
-
-    [titleInput, contentInput].forEach(input => {
-      input.addEventListener('focus', enterFocusMode);
-      input.addEventListener('blur', exitFocusMode);
-    });
-
-    exitFocusBtn.addEventListener('click', exitFocusMode);
-
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && form.classList.contains('focus-mode')) {
-        exitFocusMode();
+    contentInput.addEventListener('input', () => {
+      if (contentInput.value.trim()) {
+        contentInput.classList.add('has-content');
+      } else {
+        contentInput.classList.remove('has-content');
       }
     });
 
@@ -377,6 +354,7 @@
       noteIdInput.value = id;
       titleInput.value = title;
       contentInput.value = content;
+      contentInput.classList.toggle('has-content', content.trim().length > 0);
       cancelBtn.style.display = 'inline';
     };
 
@@ -388,6 +366,7 @@
       noteIdInput.value = '';
       titleInput.value = '';
       contentInput.value = '';
+      contentInput.classList.remove('has-content');
       cancelBtn.style.display = 'none';
     }
 
