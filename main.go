@@ -13,15 +13,24 @@ import (
 	"time"
 
 	"github.com/chai2010/webp"
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 )
 
 func main() {
 	r := gin.Default()
+	r.Use(cors.Default())
 
 	r.Static("/static", "./static")
+	r.Static("/assets/svg", "./static/svg")
 	r.LoadHTMLGlob("templates/*")
 
+	r.GET("/password-x", func(c *gin.Context) {
+    c.File("./static/vault.html")
+	})
+	r.GET("/vault", func(c *gin.Context) {
+    c.Redirect(302, "/password-x")
+	})
 	r.POST("/concat", handlers.UploadHandler)
 	r.POST("/convert", ConvertHandler)
 	r.POST("/upload-gif", handlers.UploadGIFHandler)
@@ -51,10 +60,16 @@ func main() {
 	r.PUT("/notes/:id", handlers.UpdateNote)
 	r.DELETE("/notes/:id", handlers.DeleteNote)
 
+	r.GET("/passwords", handlers.GetPasswords)
+	r.POST("/passwords", handlers.CreatePassword)
+	r.PUT("/passwords/:id", handlers.UpdatePassword)
+	r.DELETE("/passwords/:id", handlers.DeletePassword)
+
 	os.MkdirAll("./tmp", os.ModePerm)
 	go AutoCleanTmp()
 
 	handlers.LoadNotes()
+	handlers.LoadPasswords()
 	r.Run(":8080")
 }
 

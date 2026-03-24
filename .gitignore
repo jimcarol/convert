@@ -1,2 +1,4 @@
 tmp
 .DS_Store
+passwords.json
+static/passwordx/
