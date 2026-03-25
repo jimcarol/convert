@@ -12,16 +12,24 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+type AudioMemo struct {
+	Data      string `json:"data"`
+	MimeType  string `json:"mimeType"`
+	Duration  int    `json:"duration"`
+	CreatedAt int64  `json:"createdAt"`
+}
+
 type Password struct {
-	ID        int       `json:"id"`
-	Title     string    `json:"title"`
-	Username  string    `json:"username"`
-	Password  string    `json:"password"`
-	URL       string    `json:"url"`
-	Notes     string    `json:"notes"`
-	Labels    []string  `json:"labels"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	ID        int        `json:"id"`
+	Title     string     `json:"title"`
+	Username  string     `json:"username"`
+	Password  string     `json:"password"`
+	URL       string     `json:"url"`
+	Notes     string     `json:"notes"`
+	Labels    []string   `json:"labels"`
+	AudioMemo *AudioMemo `json:"audioMemo,omitempty"`
+	CreatedAt time.Time  `json:"created_at"`
+	UpdatedAt time.Time  `json:"updated_at"`
 }
 
 const passwordsFile = "passwords.json"
@@ -122,6 +130,7 @@ func UpdatePassword(c *gin.Context) {
 	if pw.Labels != nil {
 		existing.Labels = pw.Labels
 	}
+	existing.AudioMemo = pw.AudioMemo
 	existing.UpdatedAt = time.Now()
 	passwords[id] = existing
 	savePasswords()
