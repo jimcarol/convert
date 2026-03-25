@@ -35,5 +35,11 @@ COPY --from=builder /app/static ./static
 # Expose the port your Gin app runs on
 EXPOSE 8080
 
+# Auth environment variables (required)
+# AUTH_PASSWORD - master login password
+# JWT_SECRET   - HMAC signing key for JWT tokens
+ENV AUTH_PASSWORD=""
+ENV JWT_SECRET=""
+
 # Command to run the binary
 CMD ["./main"]

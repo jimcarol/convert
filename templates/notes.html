@@ -239,7 +239,23 @@
     <div id="modal-body"></div>
   </div>
   <div class="container">
-    <h1>📒 Online Notes</h1>
+    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
+      <h1>Online Notes</h1>
+      <div id="auth-area">
+        <button id="login-btn" onclick="showLoginDialog()" style="background:#2563eb;color:#fff;padding:8px 16px;border:none;border-radius:6px;cursor:pointer;font-size:0.9rem;">Login</button>
+        <span id="logged-in-area" style="display:none;">
+          <span style="color:#4CAF50;font-weight:500;">Synced</span>
+          <button onclick="doLogout()" style="background:#f44336;color:#fff;padding:6px 12px;border:none;border-radius:6px;cursor:pointer;margin-left:8px;font-size:0.85rem;">Logout</button>
+        </span>
+      </div>
+    </div>
+
+    <div id="login-dialog" style="display:none;padding:16px;margin-bottom:16px;border:1px solid #ccc;border-radius:8px;background:#f0f4ff;">
+      <input type="password" id="login-password" placeholder="Enter password" style="padding:8px 12px;border:1px solid #bbb;border-radius:6px;font-size:1rem;width:200px;" />
+      <button onclick="doLogin()" style="background:#4CAF50;color:#fff;padding:8px 16px;border:none;border-radius:6px;cursor:pointer;margin-left:8px;">OK</button>
+      <button onclick="hideLoginDialog()" style="background:#999;color:#fff;padding:8px 16px;border:none;border-radius:6px;cursor:pointer;margin-left:4px;">Cancel</button>
+      <span id="login-error" style="color:#f44336;margin-left:8px;display:none;">Wrong password</span>
+    </div>
 
     <form id="note-form">
       <input type="hidden" id="note-id" />
@@ -267,6 +283,62 @@
     const showLessBtn = document.getElementById('show-less');
     const VISIBLE_COUNT = 5;
 
+    let isAuthenticated = localStorage.getItem('authenticated') === 'true';
+
+    function updateAuthUI() {
+      document.getElementById('login-btn').style.display = isAuthenticated ? 'none' : 'inline';
+      document.getElementById('logged-in-area').style.display = isAuthenticated ? 'inline' : 'none';
+    }
+    updateAuthUI();
+
+    function showLoginDialog() {
+      document.getElementById('login-dialog').style.display = 'block';
+      document.getElementById('login-password').focus();
+    }
+    function hideLoginDialog() {
+      document.getElementById('login-dialog').style.display = 'none';
+      document.getElementById('login-error').style.display = 'none';
+      document.getElementById('login-password').value = '';
+    }
+
+    async function doLogin() {
+      const pw = document.getElementById('login-password').value;
+      try {
+        const res = await fetch('/api/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password: pw })
+        });
+        if (res.ok) {
+          isAuthenticated = true;
+          localStorage.setItem('authenticated', 'true');
+          hideLoginDialog();
+          updateAuthUI();
+          fetchNotes();
+        } else {
+          document.getElementById('login-error').style.display = 'inline';
+        }
+      } catch {
+        document.getElementById('login-error').style.display = 'inline';
+      }
+    }
+
+    async function doLogout() {
+      await fetch('/api/logout', { method: 'POST' });
+      isAuthenticated = false;
+      localStorage.removeItem('authenticated');
+      updateAuthUI();
+      fetchNotes();
+    }
+
+    // Handle 401 from API (token expired)
+    function handleAuthError() {
+      isAuthenticated = false;
+      localStorage.removeItem('authenticated');
+      updateAuthUI();
+      fetchNotes();
+    }
+
     contentInput.addEventListener('input', () => {
       if (contentInput.value.trim()) {
         contentInput.classList.add('has-content');
@@ -275,15 +347,29 @@
       }
     });
 
+    // --- Local storage helpers ---
+    function getLocalNotes() {
+      return JSON.parse(localStorage.getItem('local_notes') || '[]');
+    }
+    function saveLocalNotes(notes) {
+      localStorage.setItem('local_notes', JSON.stringify(notes));
+    }
+
     async function fetchNotes() {
-      const res = await fetch('/notes');
-      const notes = await res.json();
+      let notes;
+      if (isAuthenticated) {
+        const res = await fetch('/notes');
+        if (res.status === 401) { handleAuthError(); return; }
+        notes = await res.json();
+      } else {
+        notes = getLocalNotes();
+      }
       renderNotes(notes);
     }
 
     function renderNotes(notes) {
       notesDiv.innerHTML = '';
-      notes.sort((a,b) => b.updated_at.localeCompare(a.updated_at));
+      notes.sort((a,b) => (b.updated_at || '').localeCompare(a.updated_at || ''));
       notes.forEach((note, index) => {
         const div = document.createElement('div');
         div.className = 'note';
@@ -317,25 +403,48 @@
         title: titleInput.value,
         content: contentInput.value
       };
-      if (id) {
-        await fetch(`/notes/${id}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(note)
-        });
+      if (isAuthenticated) {
+        let res;
+        if (id) {
+          res = await fetch(`/notes/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(note)
+          });
+        } else {
+          res = await fetch('/notes', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(note)
+          });
+        }
+        if (res.status === 401) { handleAuthError(); return; }
       } else {
-        await fetch('/notes', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(note)
-        });
+        const notes = getLocalNotes();
+        const now = new Date().toISOString();
+        if (id) {
+          const idx = notes.findIndex(n => n.id == id);
+          if (idx !== -1) { notes[idx].title = note.title; notes[idx].content = note.content; notes[idx].updated_at = now; }
+        } else {
+          note.id = Date.now();
+          note.created_at = now;
+          note.updated_at = now;
+          notes.push(note);
+        }
+        saveLocalNotes(notes);
       }
       resetForm();
       fetchNotes();
     });
 
     async function deleteNote(id) {
-      await fetch(`/notes/${id}`, { method: 'DELETE' });
+      if (isAuthenticated) {
+        const res = await fetch(`/notes/${id}`, { method: 'DELETE' });
+        if (res.status === 401) { handleAuthError(); return; }
+      } else {
+        const notes = getLocalNotes().filter(n => n.id != id);
+        saveLocalNotes(notes);
+      }
       fetchNotes();
     }
 
@@ -409,6 +518,11 @@
 
     modalClose.addEventListener('click', closeModal);
     modalOverlay.addEventListener('click', closeModal);
+
+    // Enter key to submit login
+    document.getElementById('login-password').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') doLogin();
+    });
 
     fetchNotes();
   </script>
