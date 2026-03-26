@@ -16,7 +16,7 @@ type AudioMemo struct {
 	Data      string `json:"data"`
 	MimeType  string `json:"mimeType"`
 	Duration  int    `json:"duration"`
-	CreatedAt int64  `json:"createdAt"`
+	CreatedAt time.Time  `json:"created_at"`
 }
 
 type Password struct {
@@ -27,7 +27,7 @@ type Password struct {
 	URL       string     `json:"url"`
 	Notes     string     `json:"notes"`
 	Labels    []string   `json:"labels"`
-	AudioMemo *AudioMemo `json:"audioMemo,omitempty"`
+	AudioMemo *AudioMemo `json:"audio_memo,omitempty"`
 	CreatedAt time.Time  `json:"created_at"`
 	UpdatedAt time.Time  `json:"updated_at"`
 }
