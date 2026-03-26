@@ -162,3 +162,61 @@ docker tag converter:${tag_name}-amd64 jimhsx/convert:${tag_name}-amd64
 docker push jimhsx/convert:${tag_name}-amd64
 ```
 
+## Docker (Split lite/heavy)
+
+### Build
+```shell
+docker buildx build --platform linux/amd64 --no-cache -f Dockerfile.lite -t converter-lite:${tag_name}-amd64 .
+docker buildx build --platform linux/amd64 --no-cache -f Dockerfile.heavy -t converter-heavy:${tag_name}-amd64 .
+```
+
+### Tag + Push
+```shell
+docker tag converter-lite:${tag_name}-amd64 jimhsx/convert-lite:${tag_name}-amd64
+docker tag converter-heavy:${tag_name}-amd64 jimhsx/convert-heavy:${tag_name}-amd64
+
+docker push jimhsx/convert-lite:${tag_name}-amd64
+docker push jimhsx/convert-heavy:${tag_name}-amd64
+```
+
+### Caddy Reverse Proxy (keep existing URL paths)
+Use [Caddyfile.example](./Caddyfile.example), or copy:
+
+```caddyfile
+:80 {
+    @heavy_convert path /concat /convert /upload-gif
+    @heavy_download path /download/*
+
+    reverse_proxy @heavy_convert heavy:8080
+    reverse_proxy @heavy_download heavy:8080
+
+    reverse_proxy lite:8080
+}
+```
+
+### Runtime ENV
+- `lite` service: `AUTH_PASSWORD`, `JWT_SECRET`, `PORT` (optional, default `8080`)
+- `heavy` service: `JWT_SECRET`, `PORT` (optional, default `8080`)
+
+Set the same `JWT_SECRET` for both services so one login token works across both upstreams.
+
+### Local Development with docker-compose
+Start split services locally:
+
+```shell
+AUTH_PASSWORD='your-password' JWT_SECRET='your-jwt-secret' docker compose up --build
+```
+
+Then open:
+- `http://localhost:8080`
+
+Compose services:
+- `lite` for auth/notes/passwords/pages
+- `heavy` for `/concat`, `/convert`, `/upload-gif`, `/download/*`
+- `caddy` for path-based reverse proxy
+
+Stop and remove containers:
+
+```shell
+docker compose down
+```

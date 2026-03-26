@@ -1,0 +1,39 @@
+services:
+  lite:
+    build:
+      context: .
+      dockerfile: Dockerfile.lite
+    container_name: converter-lite
+    environment:
+      AUTH_PASSWORD: ${AUTH_PASSWORD:-dev-password}
+      JWT_SECRET: ${JWT_SECRET:-dev-jwt-secret-change-me}
+      PORT: "8080"
+    volumes:
+      - ./notes.json:/root/notes.json
+      - ./passwords.json:/root/passwords.json
+    restart: unless-stopped
+
+  heavy:
+    build:
+      context: .
+      dockerfile: Dockerfile.heavy
+    container_name: converter-heavy
+    environment:
+      JWT_SECRET: ${JWT_SECRET:-dev-jwt-secret-change-me}
+      PORT: "8080"
+      FONT_PATH: /usr/share/fonts/wqy-zenhei/wqy-zenhei.ttc
+    volumes:
+      - ./tmp:/root/tmp
+    restart: unless-stopped
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: converter-caddy
+    depends_on:
+      - lite
+      - heavy
+    ports:
+      - "8080:80"
+    volumes:
+      - ./Caddyfile.example:/etc/caddy/Caddyfile:ro
+    restart: unless-stopped

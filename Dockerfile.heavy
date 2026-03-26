@@ -1,0 +1,25 @@
+FROM golang:1.24.2-alpine AS builder
+
+RUN apk add --no-cache gcc g++ libc-dev libwebp-dev
+
+ENV CGO_ENABLED=1
+WORKDIR /app
+COPY go.mod go.sum ./
+RUN go mod download
+
+COPY . .
+RUN go build -o /out/heavy ./cmd/heavy
+
+FROM alpine:latest
+RUN apk --no-cache add ca-certificates libreoffice openjdk11-jre font-noto-cjk font-wqy-zenhei
+
+WORKDIR /root/
+COPY --from=builder /out/heavy ./heavy
+
+EXPOSE 8080
+
+ENV FONT_PATH="/usr/share/fonts/wqy-zenhei/wqy-zenhei.ttc"
+ENV JWT_SECRET=""
+ENV PORT="8080"
+
+CMD ["./heavy"]

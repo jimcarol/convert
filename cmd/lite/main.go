@@ -2,7 +2,6 @@ package main
 
 import (
 	"file-converter/handlers"
-	"file-converter/internal/heavy"
 	"file-converter/internal/server"
 	"file-converter/middleware"
 	"log"
@@ -23,9 +22,6 @@ func main() {
 	server.RegisterAuthRoutes(r, authPassword, jwtSecret)
 	registerProtectedRoutes(r, jwtSecret)
 
-	_ = os.MkdirAll("./tmp", os.ModePerm)
-	go heavy.AutoCleanTmp()
-
 	handlers.LoadNotes()
 	handlers.LoadPasswords()
 
@@ -42,8 +38,6 @@ func registerProtectedRoutes(r *gin.Engine, jwtSecret string) {
 	api := r.Group("/")
 	api.Use(middleware.AuthRequired(jwtSecret))
 	{
-		heavy.RegisterProtectedRoutes(api)
-
 		api.GET("/notes", handlers.GetNotes)
 		api.POST("/notes", handlers.CreateNote)
 		api.PUT("/notes/:id", handlers.UpdateNote)
