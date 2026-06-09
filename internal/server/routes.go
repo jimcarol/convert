@@ -34,6 +34,9 @@ func RegisterPublicWebRoutes(r *gin.Engine) {
 	r.GET("/online-note", func(c *gin.Context) {
 		c.HTML(http.StatusOK, "notes.html", nil)
 	})
+	r.HEAD("/online-note", func(c *gin.Context) {
+		c.Status(http.StatusOK)
+	})
 	r.GET("/password-x", func(c *gin.Context) {
 		c.File("./static/vault.html")
 	})

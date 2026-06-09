@@ -4,527 +4,58 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Online Notes</title>
-  <style>
-    /* 1) Make sizing predictable so 100% includes padding & border */
-    *,
-    *::before,
-    *::after { box-sizing: border-box; }
-
-    /* 2) Page/container */
-    body {
-      margin: 0;
-      font-family: Arial, sans-serif;
-    }
-    .container {
-      max-width: 1000px;         /* comfortable upper bound */
-      margin: 24px auto;
-      padding: 0 16px;           /* safe gutters on small screens */
-    }
-
-    /* 3) Form */
-    #note-form {
-      width: 100%;
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-      margin-bottom: 20px;
-      padding: 16px;
-      border: 1px solid #ccc;
-      border-radius: 8px;
-      background: #fafafa;
-      transition: all 0.3s ease;
-    }
-    textarea.has-content {
-      min-height: 60vh;
-    }
-
-    /* 4) Inputs never overflow the form now */
-    input[type="text"],
-    textarea {
-      display: block;
-      width: 100%;
-      max-width: 100%;           /* guard against flex overflow */
-      padding: 12px;
-      border: 1px solid #bbb;
-      border-radius: 8px;
-      font-size: 1.1rem;
-    }
-
-    #title {
-      font-size: 1.3rem;         /* bigger title */
-      font-weight: 600;
-    }
-
-    textarea {
-      resize: vertical;
-      min-height: 260px;         /* large but not silly */
-      line-height: 1.5;
-    }
-
-    /* 5) Buttons */
-    button {
-      font-size: 0.9rem;
-      padding: 8px 16px;
-      border: none;
-      border-radius: 6px;
-      cursor: pointer;
-      transition: all 0.2s ease;
-      font-weight: 500;
-    }
-    button:hover { opacity: 0.9; transform: translateY(-1px); }
-    button[type="submit"] { background: #4CAF50; color: #fff; }
-    button[type="submit"]:hover { background: #45a049; }
-    #cancel-edit { background: #f44336; color: #fff; }
-    #cancel-edit:hover { background: #da190b; }
-
-    #show-more, #show-less {
-      width: 100%;
-      padding: 12px;
-      margin-top: 12px;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: white;
-      border: none;
-      border-radius: 8px;
-      cursor: pointer;
-      font-weight: 500;
-      transition: all 0.3s ease;
-    }
-    #show-more:hover, #show-less:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
-    }
-
-    /* 6) Notes list */
-    .note {
-      border: 1px solid #e0e0e0;
-      border-radius: 12px;
-      padding: 16px;
-      margin-bottom: 16px;
-      background: #fff;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-      transition: all 0.3s ease;
-    }
-    .note:hover {
-      box-shadow: 0 4px 16px rgba(0,0,0,0.1);
-      transform: translateY(-2px);
-    }
-    .note-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 8px;
-      min-width: 0;
-      cursor: pointer;
-      padding: 8px;
-      border-radius: 8px;
-      transition: background 0.2s ease;
-    }
-    .note-header:hover { background: #f5f5f5; }
-    .note-title {
-      flex: 1;
-      font-size: 1.1rem;
-      color: #333;
-    }
-    .note-content {
-      display: none;
-      margin-top: 12px;
-      padding: 16px;
-      background: #fafafa;
-      border-radius: 8px;
-      border-left: 4px solid #667eea;
-    }
-    .note-content.expanded { display: block; }
-    .note-content p {
-      color: #555;
-      line-height: 1.6;
-      margin: 0 0 12px 0;
-    }
-    .note-content small {
-      color: #999;
-      font-size: 0.85rem;
-    }
-    .note-actions { flex-shrink: 0; }
-    .note-actions button {
-      margin-left: 8px;
-      background: #e3f2fd;
-      color: #1976d2;
-      padding: 6px 12px;
-      font-size: 0.85rem;
-    }
-    .note-actions button:hover {
-      background: #1976d2;
-      color: white;
-    }
-
-    .expand-btn {
-      display: none;
-      margin-top: 12px;
-      padding: 8px 16px;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: white;
-      border: none;
-      border-radius: 6px;
-      cursor: pointer;
-      font-size: 0.9rem;
-      font-weight: 500;
-      transition: all 0.3s ease;
-    }
-    .expand-btn:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
-    }
-    .note-content.expanded .expand-btn { display: inline-block; }
-
-    .modal-overlay {
-      display: none;
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: rgba(0,0,0,0.6);
-      z-index: 1000;
-      backdrop-filter: blur(4px);
-    }
-    .modal-overlay.active { display: block; }
-
-    .modal-content {
-      position: fixed;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      width: 90%;
-      max-width: 900px;
-      max-height: 80vh;
-      background: white;
-      border-radius: 16px;
-      padding: 32px;
-      z-index: 1001;
-      overflow-y: auto;
-      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-    }
-    .modal-content h2 {
-      color: #333;
-      margin-top: 0;
-      padding-right: 80px;
-    }
-    .modal-content p {
-      color: #555;
-      line-height: 1.8;
-    }
-
-    .modal-close {
-      position: absolute;
-      top: 16px;
-      right: 16px;
-      padding: 8px 16px;
-      background: #f44336;
-      color: white;
-      border: none;
-      border-radius: 6px;
-      cursor: pointer;
-      font-weight: 500;
-      transition: all 0.2s ease;
-    }
-    .modal-close:hover {
-      background: #da190b;
-      transform: translateY(-1px);
-    }
-  </style>
+  <link rel="stylesheet" href="/static/vendor/highlight/github.min.css">
+  <link rel="stylesheet" href="/static/css/notes.css">
 </head>
 <body>
   <div class="modal-overlay" id="modal-overlay"></div>
-  <div class="modal-content" id="modal-content" style="display:none;">
-    <button class="modal-close" id="modal-close">Close</button>
+  <div class="modal-content" id="modal-content">
+    <button class="modal-close btn-danger" id="modal-close" type="button">Close</button>
     <div id="modal-body"></div>
   </div>
+
   <div class="container">
-    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
-      <h1>Online Notes</h1>
-      <div id="auth-area">
-        <button id="login-btn" onclick="showLoginDialog()" style="background:#2563eb;color:#fff;padding:8px 16px;border:none;border-radius:6px;cursor:pointer;font-size:0.9rem;">Login</button>
-        <span id="logged-in-area" style="display:none;">
-          <span style="color:#4CAF50;font-weight:500;">Synced</span>
-          <button onclick="doLogout()" style="background:#f44336;color:#fff;padding:6px 12px;border:none;border-radius:6px;cursor:pointer;margin-left:8px;font-size:0.85rem;">Logout</button>
+    <div class="page-header">
+      <h1 class="page-title">Online Notes</h1>
+      <div class="auth-area" id="auth-area">
+        <button id="login-btn" class="btn-auth" type="button">Login</button>
+        <span class="logged-in-area" id="logged-in-area">
+          <span class="sync-badge">Synced</span>
+          <button id="logout-btn" class="btn-danger" type="button">Logout</button>
         </span>
       </div>
     </div>
 
-    <div id="login-dialog" style="display:none;padding:16px;margin-bottom:16px;border:1px solid #ccc;border-radius:8px;background:#f0f4ff;">
-      <input type="password" id="login-password" placeholder="Enter password" style="padding:8px 12px;border:1px solid #bbb;border-radius:6px;font-size:1rem;width:200px;" />
-      <button onclick="doLogin()" style="background:#4CAF50;color:#fff;padding:8px 16px;border:none;border-radius:6px;cursor:pointer;margin-left:8px;">OK</button>
-      <button onclick="hideLoginDialog()" style="background:#999;color:#fff;padding:8px 16px;border:none;border-radius:6px;cursor:pointer;margin-left:4px;">Cancel</button>
-      <span id="login-error" style="color:#f44336;margin-left:8px;display:none;">Wrong password</span>
+    <div class="login-dialog" id="login-dialog">
+      <div class="login-row">
+        <input type="password" id="login-password" class="login-password" placeholder="Enter password" />
+        <div class="login-actions">
+          <button id="login-confirm" class="btn-primary" type="button">OK</button>
+          <button id="login-cancel" class="btn-secondary" type="button">Cancel</button>
+        </div>
+        <span id="login-error" class="login-error">Wrong password</span>
+      </div>
     </div>
 
     <form id="note-form">
       <input type="hidden" id="note-id" />
       <input type="text" id="title" placeholder="Title" required />
-      <textarea id="content" placeholder="Write your note..." required></textarea>
-      <div>
-        <button type="submit">Save</button>
-        <button type="button" id="cancel-edit" style="display:none;">Cancel</button>
+      <textarea id="content" placeholder="Write markdown, code fences, and notes here..." required></textarea>
+      <p class="form-help">Saved content stays as markdown source. Notes are rendered as preview when displayed.</p>
+      <div class="form-actions">
+        <button type="submit" class="btn-primary">Save</button>
+        <button type="button" id="cancel-edit" class="btn-danger" style="display:none;">Cancel</button>
       </div>
     </form>
 
     <div id="notes"></div>
-    <button id="show-more" style="display:none;">Show More Notes</button>
-    <button id="show-less" style="display:none;">Show Less</button>
+    <button id="show-more" type="button" style="display:none;">Show More Notes</button>
+    <button id="show-less" type="button" style="display:none;">Show Less</button>
   </div>
 
-  <script>
-    const form = document.getElementById('note-form');
-    const notesDiv = document.getElementById('notes');
-    const noteIdInput = document.getElementById('note-id');
-    const titleInput = document.getElementById('title');
-    const contentInput = document.getElementById('content');
-    const cancelBtn = document.getElementById('cancel-edit');
-    const showMoreBtn = document.getElementById('show-more');
-    const showLessBtn = document.getElementById('show-less');
-    const VISIBLE_COUNT = 5;
-
-    let isAuthenticated = localStorage.getItem('authenticated') === 'true';
-
-    function updateAuthUI() {
-      document.getElementById('login-btn').style.display = isAuthenticated ? 'none' : 'inline';
-      document.getElementById('logged-in-area').style.display = isAuthenticated ? 'inline' : 'none';
-    }
-    updateAuthUI();
-
-    function showLoginDialog() {
-      document.getElementById('login-dialog').style.display = 'block';
-      document.getElementById('login-password').focus();
-    }
-    function hideLoginDialog() {
-      document.getElementById('login-dialog').style.display = 'none';
-      document.getElementById('login-error').style.display = 'none';
-      document.getElementById('login-password').value = '';
-    }
-
-    async function doLogin() {
-      const pw = document.getElementById('login-password').value;
-      try {
-        const res = await fetch('/api/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ password: pw })
-        });
-        if (res.ok) {
-          isAuthenticated = true;
-          localStorage.setItem('authenticated', 'true');
-          hideLoginDialog();
-          updateAuthUI();
-          fetchNotes();
-        } else {
-          document.getElementById('login-error').style.display = 'inline';
-        }
-      } catch {
-        document.getElementById('login-error').style.display = 'inline';
-      }
-    }
-
-    async function doLogout() {
-      await fetch('/api/logout', { method: 'POST' });
-      isAuthenticated = false;
-      localStorage.removeItem('authenticated');
-      updateAuthUI();
-      fetchNotes();
-    }
-
-    // Handle 401 from API (token expired)
-    function handleAuthError() {
-      isAuthenticated = false;
-      localStorage.removeItem('authenticated');
-      updateAuthUI();
-      fetchNotes();
-    }
-
-    contentInput.addEventListener('input', () => {
-      if (contentInput.value.trim()) {
-        contentInput.classList.add('has-content');
-      } else {
-        contentInput.classList.remove('has-content');
-      }
-    });
-
-    // --- Local storage helpers ---
-    function getLocalNotes() {
-      return JSON.parse(localStorage.getItem('local_notes') || '[]');
-    }
-    function saveLocalNotes(notes) {
-      localStorage.setItem('local_notes', JSON.stringify(notes));
-    }
-
-    async function fetchNotes() {
-      let notes;
-      if (isAuthenticated) {
-        const res = await fetch('/notes');
-        if (res.status === 401) { handleAuthError(); return; }
-        notes = await res.json();
-      } else {
-        notes = getLocalNotes();
-      }
-      renderNotes(notes);
-    }
-
-    function renderNotes(notes) {
-      notesDiv.innerHTML = '';
-      notes.sort((a,b) => (b.updated_at || '').localeCompare(a.updated_at || ''));
-      notes.forEach((note, index) => {
-        const div = document.createElement('div');
-        div.className = 'note';
-        if (index >= VISIBLE_COUNT) div.style.display = 'none';
-        div.innerHTML = `
-          <div class="note-header" onclick="event.target.closest('.note').querySelector('.note-content').classList.toggle('expanded')">
-            <strong class="note-title">▶ ${note.title}</strong>
-            <div class="note-actions" onclick="onEditClick(event)">
-              <button class="edit-btn"
-                      data-id="${note.id}"
-                      data-title="${encodeURIComponent(note.title)}"
-                      data-content="${encodeURIComponent(note.content)}">Edit</button>
-              <button onclick="deleteNote(${note.id})">Delete</button>
-            </div>
-          </div>
-          <div class="note-content">
-            <p style="white-space:pre-wrap;">${note.content}</p>
-            <small>Updated: ${new Date(note.updated_at).toLocaleString()}</small>
-            <button class="expand-btn" onclick="expandNote(event, ${note.id}, '${encodeURIComponent(note.title)}', '${encodeURIComponent(note.content)}')">Expand</button>
-          </div>
-        `;
-        notesDiv.appendChild(div);
-      });
-      showMoreBtn.style.display = notes.length > VISIBLE_COUNT ? 'block' : 'none';
-    }
-
-    form.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const id = noteIdInput.value;
-      const note = {
-        title: titleInput.value,
-        content: contentInput.value
-      };
-      if (isAuthenticated) {
-        let res;
-        if (id) {
-          res = await fetch(`/notes/${id}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(note)
-          });
-        } else {
-          res = await fetch('/notes', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(note)
-          });
-        }
-        if (res.status === 401) { handleAuthError(); return; }
-      } else {
-        const notes = getLocalNotes();
-        const now = new Date().toISOString();
-        if (id) {
-          const idx = notes.findIndex(n => n.id == id);
-          if (idx !== -1) { notes[idx].title = note.title; notes[idx].content = note.content; notes[idx].updated_at = now; }
-        } else {
-          note.id = Date.now();
-          note.created_at = now;
-          note.updated_at = now;
-          notes.push(note);
-        }
-        saveLocalNotes(notes);
-      }
-      resetForm();
-      fetchNotes();
-    });
-
-    async function deleteNote(id) {
-      if (isAuthenticated) {
-        const res = await fetch(`/notes/${id}`, { method: 'DELETE' });
-        if (res.status === 401) { handleAuthError(); return; }
-      } else {
-        const notes = getLocalNotes().filter(n => n.id != id);
-        saveLocalNotes(notes);
-      }
-      fetchNotes();
-    }
-
-    function onEditClick(e) {
-      e.stopPropagation()
-      if (e.target.classList.contains('edit-btn')) {
-        const btn = e.target;
-        const id = btn.dataset.id;
-        const title = decodeURIComponent(btn.dataset.title);
-        const content = decodeURIComponent(btn.dataset.content);
-        editNote(id, title, content);
-      }
-    }
-
-    window.editNote = (id, title, content) => {
-      noteIdInput.value = id;
-      titleInput.value = title;
-      contentInput.value = content;
-      contentInput.classList.toggle('has-content', content.trim().length > 0);
-      cancelBtn.style.display = 'inline';
-    };
-
-    cancelBtn.addEventListener('click', () => {
-      resetForm();
-    });
-
-    function resetForm() {
-      noteIdInput.value = '';
-      titleInput.value = '';
-      contentInput.value = '';
-      contentInput.classList.remove('has-content');
-      cancelBtn.style.display = 'none';
-    }
-
-    showMoreBtn.addEventListener('click', () => {
-      const hiddenNotes = notesDiv.querySelectorAll('.note[style*="display: none"]');
-      hiddenNotes.forEach(note => note.style.display = 'block');
-      showMoreBtn.style.display = 'none';
-      showLessBtn.style.display = 'block';
-    });
-
-    showLessBtn.addEventListener('click', () => {
-      const allNotes = notesDiv.querySelectorAll('.note');
-      allNotes.forEach((note, index) => {
-        if (index >= VISIBLE_COUNT) note.style.display = 'none';
-      });
-      showLessBtn.style.display = 'none';
-      showMoreBtn.style.display = 'block';
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    });
-
-    const modalOverlay = document.getElementById('modal-overlay');
-    const modalContent = document.getElementById('modal-content');
-    const modalBody = document.getElementById('modal-body');
-    const modalClose = document.getElementById('modal-close');
-
-    window.expandNote = (e, id, title, content) => {
-      e.stopPropagation();
-      modalBody.innerHTML = `
-        <h2>${decodeURIComponent(title)}</h2>
-        <p style="white-space:pre-wrap; margin-top:16px;">${decodeURIComponent(content)}</p>
-      `;
-      modalOverlay.classList.add('active');
-      modalContent.style.display = 'block';
-    };
-
-    function closeModal() {
-      modalOverlay.classList.remove('active');
-      modalContent.style.display = 'none';
-    }
-
-    modalClose.addEventListener('click', closeModal);
-    modalOverlay.addEventListener('click', closeModal);
-
-    // Enter key to submit login
-    document.getElementById('login-password').addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') doLogin();
-    });
-
-    fetchNotes();
-  </script>
+  <script src="/static/vendor/marked/marked.umd.js"></script>
+  <script src="/static/vendor/dompurify/purify.min.js"></script>
+  <script src="/static/vendor/highlight/highlight.min.js"></script>
+  <script src="/static/js/notes.js"></script>
 </body>
 </html>
