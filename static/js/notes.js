@@ -539,6 +539,10 @@ form.addEventListener('submit', async (event) => {
 });
 
 async function deleteNote(id) {
+  if (!window.confirm('Delete this note? This action cannot be undone.')) {
+    return;
+  }
+
   if (isAuthenticated) {
     const res = await fetch(`/notes/${id}`, { method: 'DELETE' });
     if (res.status === 401) {
