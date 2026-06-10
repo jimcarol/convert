@@ -37,27 +37,54 @@
       </div>
     </div>
 
-    <form id="note-form">
-      <input type="hidden" id="note-id" />
-      <input type="text" id="title" placeholder="Title" required />
-      <div class="tag-picker" id="form-tag-picker">
-        <div class="tag-picker-header">
-          <span class="tag-picker-label">Tags</span>
-          <span class="tag-picker-help">No selection falls back to default.</span>
+    <div class="notes-layout" id="notes-layout">
+      <aside class="filter-bar" id="filter-bar">
+        <div class="filter-bar-inner">
+          <div class="filter-bar-header">
+            <div class="filter-bar-heading">
+              <h2 class="filter-bar-title">Filter By Tags</h2>
+              <span class="filter-count" id="filter-count">All notes</span>
+            </div>
+            <div class="filter-bar-actions">
+              <button type="button" class="filter-clear-btn" id="clear-filters">Clear</button>
+              <div class="filter-toggle-wrap">
+                <button type="button" class="filter-toggle-btn" id="toggle-filter-bar" aria-expanded="true" aria-controls="filter-bar-content">Collapse</button>
+                <span class="filter-collapsed-count" id="filter-collapsed-count" style="display:none;">0</span>
+              </div>
+            </div>
+          </div>
+          <div class="filter-bar-content" id="filter-bar-content">
+            <p class="filter-bar-help">Select one or more tags. Notes matching any selected tag will remain visible.</p>
+            <div class="filter-options" id="filter-options"></div>
+          </div>
         </div>
-        <div class="tag-picker-options" id="tag-options"></div>
-      </div>
-      <textarea id="content" placeholder="Write markdown, code fences, and notes here..." required></textarea>
-      <p class="form-help">Saved content stays as markdown source. Notes are rendered as preview when displayed.</p>
-      <div class="form-actions">
-        <button type="submit" class="btn-primary">Save</button>
-        <button type="button" id="cancel-edit" class="btn-danger" style="display:none;">Cancel</button>
-      </div>
-    </form>
+      </aside>
 
-    <div id="notes"></div>
-    <button id="show-more" type="button" style="display:none;">Show More Notes</button>
-    <button id="show-less" type="button" style="display:none;">Show Less</button>
+      <div class="notes-main">
+        <form id="note-form">
+          <input type="hidden" id="note-id" />
+          <input type="text" id="title" placeholder="Title" required />
+          <div class="tag-picker" id="form-tag-picker">
+            <div class="tag-picker-header">
+              <span class="tag-picker-label">Tags</span>
+              <span class="tag-picker-help">No selection falls back to default.</span>
+            </div>
+            <div class="tag-picker-options" id="tag-options"></div>
+          </div>
+          <textarea id="content" placeholder="Write markdown, code fences, and notes here..." required></textarea>
+          <p class="form-help">Saved content stays as markdown source. Notes are rendered as preview when displayed.</p>
+          <div class="form-actions">
+            <button type="submit" class="btn-primary">Save</button>
+            <button type="button" id="cancel-edit" class="btn-danger" style="display:none;">Cancel</button>
+          </div>
+        </form>
+
+        <div id="notes"></div>
+        <div class="notes-empty-state" id="notes-empty-state" style="display:none;">No notes match the selected tags.</div>
+        <button id="show-more" type="button" style="display:none;">Show More Notes</button>
+        <button id="show-less" type="button" style="display:none;">Show Less</button>
+      </div>
+    </div>
   </div>
 
   <script src="/static/vendor/marked/marked.umd.js"></script>

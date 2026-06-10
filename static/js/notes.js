@@ -5,6 +5,15 @@ const titleInput = document.getElementById('title');
 const contentInput = document.getElementById('content');
 const cancelBtn = document.getElementById('cancel-edit');
 const tagOptions = document.getElementById('tag-options');
+const notesLayout = document.getElementById('notes-layout');
+const filterBar = document.getElementById('filter-bar');
+const filterOptions = document.getElementById('filter-options');
+const filterCount = document.getElementById('filter-count');
+const clearFiltersBtn = document.getElementById('clear-filters');
+const filterCollapsedCount = document.getElementById('filter-collapsed-count');
+const toggleFilterBarBtn = document.getElementById('toggle-filter-bar');
+const filterBarContent = document.getElementById('filter-bar-content');
+const notesEmptyState = document.getElementById('notes-empty-state');
 const showMoreBtn = document.getElementById('show-more');
 const showLessBtn = document.getElementById('show-less');
 const loginBtn = document.getElementById('login-btn');
@@ -22,9 +31,13 @@ const modalClose = document.getElementById('modal-close');
 const VISIBLE_COUNT = 5;
 const AVAILABLE_TAGS = ['work', 'personal', 'idea', 'todo'];
 const DEFAULT_TAG = 'default';
+const FILTER_TAGS_STORAGE_KEY = 'notes_filter_tags';
+const FILTER_BAR_COLLAPSED_STORAGE_KEY = 'notes_filter_bar_collapsed';
 
 let isAuthenticated = localStorage.getItem('authenticated') === 'true';
 let currentNotes = [];
+let selectedFilterTags = new Set();
+let isFilterBarCollapsed = true;
 
 marked.setOptions({
   gfm: true,
@@ -96,6 +109,34 @@ function saveLocalNotes(notes) {
   localStorage.setItem('local_notes', JSON.stringify(notes));
 }
 
+function setExpiringPreference(key, value) {
+  const expiresAt = Date.now() + 7 * 24 * 60 * 60 * 1000;
+  localStorage.setItem(key, JSON.stringify({ value, expiresAt }));
+}
+
+function getExpiringPreference(key) {
+  const raw = localStorage.getItem(key);
+  if (!raw) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object') {
+      localStorage.removeItem(key);
+      return null;
+    }
+    if (typeof parsed.expiresAt !== 'number' || parsed.expiresAt <= Date.now()) {
+      localStorage.removeItem(key);
+      return null;
+    }
+    return parsed.value ?? null;
+  } catch {
+    localStorage.removeItem(key);
+    return null;
+  }
+}
+
 function normalizeTags(tags) {
   if (!Array.isArray(tags)) {
     return [];
@@ -163,6 +204,93 @@ function renderFormTagPicker(tags = []) {
   AVAILABLE_TAGS.forEach((tag) => {
     tagOptions.appendChild(createTagPickerOption(tag, 'note-tags', selected.has(tag)));
   });
+}
+
+function getFilterableTags() {
+  return [DEFAULT_TAG, ...AVAILABLE_TAGS];
+}
+
+function persistFilterPreferences() {
+  setExpiringPreference(FILTER_TAGS_STORAGE_KEY, Array.from(selectedFilterTags));
+  setExpiringPreference(FILTER_BAR_COLLAPSED_STORAGE_KEY, isFilterBarCollapsed);
+}
+
+function restoreFilterPreferences() {
+  const savedTags = getExpiringPreference(FILTER_TAGS_STORAGE_KEY);
+  if (Array.isArray(savedTags)) {
+    selectedFilterTags = new Set(normalizeTags(savedTags));
+  }
+
+  const savedCollapsed = getExpiringPreference(FILTER_BAR_COLLAPSED_STORAGE_KEY);
+  if (typeof savedCollapsed === 'boolean') {
+    isFilterBarCollapsed = savedCollapsed;
+  }
+}
+
+function toggleFilterTag(tag) {
+  if (selectedFilterTags.has(tag)) {
+    selectedFilterTags.delete(tag);
+  } else {
+    selectedFilterTags.add(tag);
+  }
+  persistFilterPreferences();
+  showLessBtn.style.display = 'none';
+  renderFilterBar();
+  renderNotes();
+}
+
+function clearFilterTags() {
+  if (selectedFilterTags.size === 0) {
+    return;
+  }
+  selectedFilterTags.clear();
+  persistFilterPreferences();
+  showLessBtn.style.display = 'none';
+  renderFilterBar();
+  renderNotes();
+}
+
+function getFilteredNotes() {
+  if (selectedFilterTags.size === 0) {
+    return currentNotes;
+  }
+
+  return currentNotes.filter((note) => getEffectiveTags(note).some((tag) => selectedFilterTags.has(tag)));
+}
+
+function renderFilterBar() {
+  filterOptions.innerHTML = '';
+  getFilterableTags().forEach((tag) => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'filter-tag';
+    if (selectedFilterTags.has(tag)) {
+      button.classList.add('filter-tag-active');
+    }
+    if (tag === DEFAULT_TAG) {
+      button.classList.add('filter-tag-default');
+    }
+    button.textContent = tag;
+    button.addEventListener('click', () => toggleFilterTag(tag));
+    filterOptions.appendChild(button);
+  });
+
+  const activeCount = selectedFilterTags.size;
+  filterCount.textContent = activeCount > 0 ? `${activeCount} selected` : 'All notes';
+  filterCollapsedCount.textContent = String(activeCount);
+  filterCollapsedCount.style.display = activeCount > 0 ? 'inline-flex' : 'none';
+  clearFiltersBtn.style.display = 'inline-flex';
+  clearFiltersBtn.disabled = activeCount === 0;
+  clearFiltersBtn.classList.toggle('filter-clear-btn-active', activeCount > 0);
+}
+
+function updateFilterBarState() {
+  notesLayout.classList.toggle('notes-layout-collapsed', isFilterBarCollapsed);
+  filterBar.classList.toggle('filter-bar-collapsed', isFilterBarCollapsed);
+  filterBarContent.style.display = isFilterBarCollapsed ? 'none' : 'block';
+  toggleFilterBarBtn.textContent = isFilterBarCollapsed ? '›' : '‹';
+  toggleFilterBarBtn.setAttribute('aria-label', isFilterBarCollapsed ? 'Expand filter bar' : 'Collapse filter bar');
+  toggleFilterBarBtn.setAttribute('aria-expanded', String(!isFilterBarCollapsed));
 }
 
 function normalizeCodeLanguage(language) {
@@ -408,7 +536,10 @@ async function fetchNotes() {
 function renderNotes() {
   notesDiv.innerHTML = '';
 
-  currentNotes.forEach((note, index) => {
+  const filteredNotes = getFilteredNotes();
+  notesEmptyState.style.display = filteredNotes.length === 0 ? 'block' : 'none';
+
+  filteredNotes.forEach((note, index) => {
     const noteCard = document.createElement('div');
     noteCard.className = 'note';
     if (index >= VISIBLE_COUNT) {
@@ -478,7 +609,7 @@ function renderNotes() {
     notesDiv.appendChild(noteCard);
   });
 
-  showMoreBtn.style.display = currentNotes.length > VISIBLE_COUNT ? 'block' : 'none';
+  showMoreBtn.style.display = filteredNotes.length > VISIBLE_COUNT ? 'block' : 'none';
   showLessBtn.style.display = 'none';
 }
 
@@ -618,13 +749,21 @@ showMoreBtn.addEventListener('click', () => {
 });
 
 showLessBtn.addEventListener('click', () => {
+  const filteredNotes = getFilteredNotes();
   notesDiv.querySelectorAll('.note').forEach((noteCard, index) => {
     noteCard.style.display = index >= VISIBLE_COUNT ? 'none' : 'block';
   });
   showLessBtn.style.display = 'none';
-  showMoreBtn.style.display = currentNotes.length > VISIBLE_COUNT ? 'block' : 'none';
+  showMoreBtn.style.display = filteredNotes.length > VISIBLE_COUNT ? 'block' : 'none';
   window.scrollTo({ top: 0, behavior: 'smooth' });
 });
+
+toggleFilterBarBtn.addEventListener('click', () => {
+  isFilterBarCollapsed = !isFilterBarCollapsed;
+  persistFilterPreferences();
+  updateFilterBarState();
+});
+clearFiltersBtn.addEventListener('click', clearFilterTags);
 
 cancelBtn.addEventListener('click', resetForm);
 contentInput.addEventListener('input', toggleTextareaHeight);
@@ -646,7 +785,10 @@ document.addEventListener('keydown', (event) => {
   }
 });
 
+restoreFilterPreferences();
 renderFormTagPicker();
+renderFilterBar();
+updateFilterBarState();
 updateAuthUI();
 toggleTextareaHeight();
 fetchNotes();
