@@ -40,6 +40,13 @@
     <form id="note-form">
       <input type="hidden" id="note-id" />
       <input type="text" id="title" placeholder="Title" required />
+      <div class="tag-picker" id="form-tag-picker">
+        <div class="tag-picker-header">
+          <span class="tag-picker-label">Tags</span>
+          <span class="tag-picker-help">No selection falls back to default.</span>
+        </div>
+        <div class="tag-picker-options" id="tag-options"></div>
+      </div>
       <textarea id="content" placeholder="Write markdown, code fences, and notes here..." required></textarea>
       <p class="form-help">Saved content stays as markdown source. Notes are rendered as preview when displayed.</p>
       <div class="form-actions">

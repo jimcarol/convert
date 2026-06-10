@@ -13,10 +13,11 @@ import (
 )
 
 type Note struct {
-    ID      	int    		`json:"id"`
-    Title   	string 		`json:"title"`
-    Content 	string 		`json:"content"`
-		CreatedAt time.Time `json:"created_at"`
+    ID       int       `json:"id"`
+    Title    string    `json:"title"`
+    Content  string    `json:"content"`
+    Tags     []string  `json:"tags,omitempty"`
+    CreatedAt time.Time `json:"created_at"`
     UpdatedAt time.Time `json:"updated_at"`
 }
 
@@ -29,6 +30,31 @@ var (
     nextID  = 1
     notesMu sync.Mutex
 )
+
+func normalizeTags(tags []string) []string {
+    if len(tags) == 0 {
+        return nil
+    }
+
+    seen := make(map[string]struct{}, len(tags))
+    normalized := make([]string, 0, len(tags))
+    for _, tag := range tags {
+        if tag == "" {
+            continue
+        }
+        if _, ok := seen[tag]; ok {
+            continue
+        }
+        seen[tag] = struct{}{}
+        normalized = append(normalized, tag)
+    }
+
+    if len(normalized) == 0 {
+        return nil
+    }
+
+    return normalized
+}
 
 // Load notes from file
 func LoadNotes() {
@@ -46,6 +72,7 @@ func LoadNotes() {
         return
     }
     for _, n := range ns {
+        n.Tags = normalizeTags(n.Tags)
         notes[n.ID] = n
         if n.ID >= nextID {
             nextID = n.ID + 1
@@ -85,6 +112,7 @@ func CreateNote(c *gin.Context) {
 	notesMu.Lock()
 	note.ID = nextID
 	nextID++
+	note.Tags = normalizeTags(note.Tags)
 	now := time.Now()
 	note.CreatedAt = now
 	note.UpdatedAt = now
@@ -115,6 +143,7 @@ func UpdateNote(c *gin.Context) {
 
 	existing.Title = note.Title
 	existing.Content = note.Content
+	existing.Tags = normalizeTags(note.Tags)
 	existing.UpdatedAt = time.Now()
 	notes[id] = existing
 	saveNotes()

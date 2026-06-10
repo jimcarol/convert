@@ -68,6 +68,64 @@ body {
   font-size: 0.95rem;
 }
 
+.tag-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.tag-picker-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.tag-picker-label {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #374151;
+}
+
+.tag-picker-help {
+  font-size: 0.85rem;
+  color: #6b7280;
+}
+
+.tag-picker-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.tag-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 999px;
+  background: #f8fafc;
+  color: #374151;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.tag-option:hover {
+  border-color: #93c5fd;
+  background: #eff6ff;
+}
+
+.tag-option input {
+  margin: 0;
+}
+
+.tag-option-text {
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
 textarea.has-content {
   min-height: 60vh;
 }
@@ -240,6 +298,14 @@ button:disabled {
   background: #f5f5f5;
 }
 
+.note-heading {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  gap: 10px;
+}
+
 .note-title {
   flex: 1;
   min-width: 0;
@@ -247,6 +313,47 @@ button:disabled {
   font-size: 1.1rem;
   color: #333;
   word-break: break-word;
+}
+
+.tag-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.tag-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: #dbeafe;
+  color: #1d4ed8;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.tag-chip-default {
+  background: #e5e7eb;
+  color: #4b5563;
+}
+
+.tag-chip-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.7);
+  color: currentColor;
+  font-size: 0.85rem;
+  line-height: 1;
+}
+
+.tag-chip-remove:hover {
+  background: rgba(255, 255, 255, 0.95);
 }
 
 .note-content {
@@ -260,6 +367,33 @@ button:disabled {
 
 .note-content.expanded {
   display: block;
+}
+
+.note-tag-editor-host {
+  margin-bottom: 14px;
+}
+
+.note-tag-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding: 14px;
+  border: 1px solid #dbe3f0;
+  border-radius: 12px;
+  background: #f8fbff;
+}
+
+.note-tag-editor-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #334155;
+}
+
+.note-tag-editor-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .note-meta {
@@ -437,8 +571,14 @@ button:disabled {
 
   .note-actions,
   .form-actions,
-  .login-actions {
+  .login-actions,
+  .note-tag-editor-actions {
     flex-wrap: wrap;
+  }
+
+  .tag-picker-header {
+    align-items: flex-start;
+    flex-direction: column;
   }
 
   .modal-content {

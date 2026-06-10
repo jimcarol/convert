@@ -4,6 +4,7 @@ const noteIdInput = document.getElementById('note-id');
 const titleInput = document.getElementById('title');
 const contentInput = document.getElementById('content');
 const cancelBtn = document.getElementById('cancel-edit');
+const tagOptions = document.getElementById('tag-options');
 const showMoreBtn = document.getElementById('show-more');
 const showLessBtn = document.getElementById('show-less');
 const loginBtn = document.getElementById('login-btn');
@@ -19,6 +20,8 @@ const modalContent = document.getElementById('modal-content');
 const modalBody = document.getElementById('modal-body');
 const modalClose = document.getElementById('modal-close');
 const VISIBLE_COUNT = 5;
+const AVAILABLE_TAGS = ['work', 'personal', 'idea', 'todo'];
+const DEFAULT_TAG = 'default';
 
 let isAuthenticated = localStorage.getItem('authenticated') === 'true';
 let currentNotes = [];
@@ -85,11 +88,81 @@ function handleAuthError() {
 }
 
 function getLocalNotes() {
-  return JSON.parse(localStorage.getItem('local_notes') || '[]');
+  const notes = JSON.parse(localStorage.getItem('local_notes') || '[]');
+  return Array.isArray(notes) ? notes.map(normalizeNote) : [];
 }
 
 function saveLocalNotes(notes) {
   localStorage.setItem('local_notes', JSON.stringify(notes));
+}
+
+function normalizeTags(tags) {
+  if (!Array.isArray(tags)) {
+    return [];
+  }
+
+  const seen = new Set();
+  return tags
+    .map((tag) => String(tag || '').trim().toLowerCase())
+    .filter((tag) => AVAILABLE_TAGS.includes(tag))
+    .filter((tag) => {
+      if (seen.has(tag)) {
+        return false;
+      }
+      seen.add(tag);
+      return true;
+    });
+}
+
+function getEffectiveTags(note) {
+  const tags = normalizeTags(note?.tags);
+  return tags.length > 0 ? tags : [DEFAULT_TAG];
+}
+
+function normalizeNote(note) {
+  return {
+    ...note,
+    tags: normalizeTags(note?.tags)
+  };
+}
+
+function getSelectedFormTags() {
+  return Array.from(tagOptions.querySelectorAll('input[type="checkbox"]:checked'))
+    .map((input) => input.value);
+}
+
+function setSelectedFormTags(tags) {
+  const selected = new Set(normalizeTags(tags));
+  tagOptions.querySelectorAll('input[type="checkbox"]').forEach((input) => {
+    input.checked = selected.has(input.value);
+  });
+}
+
+function createTagPickerOption(tag, name, checked = false) {
+  const label = document.createElement('label');
+  label.className = 'tag-option';
+
+  const input = document.createElement('input');
+  input.type = 'checkbox';
+  input.name = name;
+  input.value = tag;
+  input.checked = checked;
+
+  const text = document.createElement('span');
+  text.className = 'tag-option-text';
+  text.textContent = tag;
+
+  label.appendChild(input);
+  label.appendChild(text);
+  return label;
+}
+
+function renderFormTagPicker(tags = []) {
+  tagOptions.innerHTML = '';
+  const selected = new Set(normalizeTags(tags));
+  AVAILABLE_TAGS.forEach((tag) => {
+    tagOptions.appendChild(createTagPickerOption(tag, 'note-tags', selected.has(tag)));
+  });
 }
 
 function normalizeCodeLanguage(language) {
@@ -201,6 +274,118 @@ function createRenderedBody(source) {
   return body;
 }
 
+async function saveTagsForNote(id, tags) {
+  const normalizedTags = normalizeTags(tags);
+
+  if (isAuthenticated) {
+    const note = getNoteById(id);
+    if (!note) {
+      return;
+    }
+
+    const res = await fetch(`/notes/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title: note.title,
+        content: note.content,
+        tags: normalizedTags
+      })
+    });
+
+    if (res.status === 401) {
+      handleAuthError();
+      return;
+    }
+  } else {
+    const notes = getLocalNotes();
+    const idx = notes.findIndex((entry) => String(entry.id) === String(id));
+    if (idx === -1) {
+      return;
+    }
+
+    notes[idx].tags = normalizedTags;
+    notes[idx].updated_at = new Date().toISOString();
+    saveLocalNotes(notes);
+  }
+
+  await fetchNotes();
+}
+
+function createTagChip(tag, options = {}) {
+  const chip = document.createElement('span');
+  chip.className = 'tag-chip';
+  if (options.isDefault) {
+    chip.classList.add('tag-chip-default');
+  }
+
+  const label = document.createElement('span');
+  label.textContent = tag;
+  chip.appendChild(label);
+
+  if (options.removable) {
+    const removeBtn = document.createElement('button');
+    removeBtn.type = 'button';
+    removeBtn.className = 'tag-chip-remove';
+    removeBtn.textContent = '×';
+    removeBtn.setAttribute('aria-label', `Remove tag ${tag}`);
+    removeBtn.addEventListener('click', (event) => {
+      event.stopPropagation();
+      options.onRemove?.();
+    });
+    chip.appendChild(removeBtn);
+  }
+
+  return chip;
+}
+
+function createTagList(note) {
+  const wrapper = document.createElement('div');
+  wrapper.className = 'tag-list';
+
+  const effectiveTags = getEffectiveTags(note);
+  const actualTags = normalizeTags(note.tags);
+  effectiveTags.forEach((tag) => {
+    const removable = actualTags.includes(tag);
+    wrapper.appendChild(createTagChip(tag, {
+      isDefault: tag === DEFAULT_TAG,
+      removable,
+      onRemove: () => saveTagsForNote(note.id, actualTags.filter((value) => value !== tag))
+    }));
+  });
+
+  return wrapper;
+}
+
+function createNoteTagEditor(note, onClose) {
+  const editor = document.createElement('div');
+  editor.className = 'note-tag-editor';
+
+  const title = document.createElement('div');
+  title.className = 'note-tag-editor-title';
+  title.textContent = 'Update tags';
+
+  const options = document.createElement('div');
+  options.className = 'tag-picker-options';
+  const selected = new Set(normalizeTags(note.tags));
+  AVAILABLE_TAGS.forEach((tag) => {
+    options.appendChild(createTagPickerOption(tag, `note-${note.id}-tags`, selected.has(tag)));
+  });
+
+  const actions = document.createElement('div');
+  actions.className = 'note-tag-editor-actions';
+  actions.appendChild(createActionButton('Apply', 'btn-note', async () => {
+    const tags = Array.from(options.querySelectorAll('input[type="checkbox"]:checked')).map((input) => input.value);
+    await saveTagsForNote(note.id, tags);
+  }));
+  actions.appendChild(createActionButton('Cancel', 'btn-note', onClose));
+
+  editor.appendChild(title);
+  editor.appendChild(options);
+  editor.appendChild(actions);
+  return editor;
+}
+
 async function fetchNotes() {
   let notes;
   if (isAuthenticated) {
@@ -215,7 +400,7 @@ async function fetchNotes() {
   }
 
   currentNotes = Array.isArray(notes)
-    ? [...notes].sort((a, b) => (b.updated_at || '').localeCompare(a.updated_at || ''))
+    ? notes.map(normalizeNote).sort((a, b) => (b.updated_at || '').localeCompare(a.updated_at || ''))
     : [];
   renderNotes();
 }
@@ -233,9 +418,14 @@ function renderNotes() {
     const header = document.createElement('div');
     header.className = 'note-header';
 
+    const titleWrap = document.createElement('div');
+    titleWrap.className = 'note-heading';
+
     const title = document.createElement('strong');
     title.className = 'note-title';
     title.textContent = `▶ ${note.title}`;
+
+    const tags = createTagList(note);
 
     const actions = document.createElement('div');
     actions.className = 'note-actions';
@@ -243,11 +433,23 @@ function renderNotes() {
     const content = document.createElement('div');
     content.className = 'note-content';
 
+    const tagEditorHost = document.createElement('div');
+    tagEditorHost.className = 'note-tag-editor-host';
+
     header.addEventListener('click', () => {
       content.classList.toggle('expanded');
     });
 
     actions.appendChild(createActionButton('Edit', 'btn-note', () => editNote(note.id)));
+    actions.appendChild(createActionButton('Tags', 'btn-note', () => {
+      if (tagEditorHost.childElementCount > 0) {
+        tagEditorHost.innerHTML = '';
+        return;
+      }
+      tagEditorHost.appendChild(createNoteTagEditor(note, () => {
+        tagEditorHost.innerHTML = '';
+      }));
+    }));
     actions.appendChild(createActionButton('Delete', 'btn-note', () => deleteNote(note.id)));
 
     const body = createRenderedBody(note.content);
@@ -264,8 +466,11 @@ function renderNotes() {
     meta.appendChild(updated);
     meta.appendChild(expandBtn);
 
-    header.appendChild(title);
+    titleWrap.appendChild(title);
+    titleWrap.appendChild(tags);
+    header.appendChild(titleWrap);
     header.appendChild(actions);
+    content.appendChild(tagEditorHost);
     content.appendChild(body);
     content.appendChild(meta);
     noteCard.appendChild(header);
@@ -283,7 +488,8 @@ form.addEventListener('submit', async (event) => {
   const id = noteIdInput.value;
   const note = {
     title: titleInput.value,
-    content: contentInput.value
+    content: contentInput.value,
+    tags: normalizeTags(getSelectedFormTags())
   };
 
   if (isAuthenticated) {
@@ -315,6 +521,7 @@ form.addEventListener('submit', async (event) => {
       if (idx !== -1) {
         notes[idx].title = note.title;
         notes[idx].content = note.content;
+        notes[idx].tags = note.tags;
         notes[idx].updated_at = now;
       }
     } else {
@@ -357,6 +564,7 @@ function editNote(id) {
 
   noteIdInput.value = note.id;
   titleInput.value = note.title;
+  setSelectedFormTags(note.tags);
   contentInput.value = note.content;
   toggleTextareaHeight();
   cancelBtn.style.display = 'inline-flex';
@@ -391,6 +599,7 @@ function closeModal() {
 function resetForm() {
   noteIdInput.value = '';
   titleInput.value = '';
+  setSelectedFormTags([]);
   contentInput.value = '';
   contentInput.classList.remove('has-content');
   cancelBtn.style.display = 'none';
@@ -433,6 +642,7 @@ document.addEventListener('keydown', (event) => {
   }
 });
 
+renderFormTagPicker();
 updateAuthUI();
 toggleTextareaHeight();
 fetchNotes();
