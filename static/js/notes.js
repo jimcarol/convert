@@ -377,6 +377,52 @@ function renderMarkdownInto(container, source) {
   container.querySelectorAll('pre code').forEach((block) => {
     hljs.highlightElement(block);
   });
+
+  decorateCodeBlocks(container);
+}
+
+async function copyTextToClipboard(text) {
+  await navigator.clipboard.writeText(text);
+}
+
+function showCopyButtonState(button, label, className = '') {
+  button.textContent = label;
+  button.classList.toggle('code-copy-button-success', className === 'code-copy-button-success');
+  button.classList.toggle('code-copy-button-error', className === 'code-copy-button-error');
+}
+
+function decorateCodeBlocks(container) {
+  container.querySelectorAll('pre code').forEach((block) => {
+    const pre = block.parentElement;
+    if (!pre || pre.querySelector('.code-copy-button')) {
+      return;
+    }
+
+    pre.classList.add('code-copy-enabled');
+
+    const copyButton = document.createElement('button');
+    copyButton.type = 'button';
+    copyButton.className = 'code-copy-button';
+    copyButton.textContent = 'Copy';
+    copyButton.setAttribute('aria-label', 'Copy code block');
+    copyButton.addEventListener('click', async (event) => {
+      event.stopPropagation();
+      window.clearTimeout(copyButton._resetTimer);
+
+      try {
+        await copyTextToClipboard(block.textContent || '');
+        showCopyButtonState(copyButton, 'Copied', 'code-copy-button-success');
+      } catch {
+        showCopyButtonState(copyButton, 'Failed', 'code-copy-button-error');
+      }
+
+      copyButton._resetTimer = window.setTimeout(() => {
+        showCopyButtonState(copyButton, 'Copy');
+      }, 1600);
+    });
+
+    pre.appendChild(copyButton);
+  });
 }
 
 function getNoteById(id) {
@@ -467,7 +513,7 @@ function createTagChip(tag, options = {}) {
   return chip;
 }
 
-function createTagList(note) {
+function createTagList(note, options = {}) {
   const wrapper = document.createElement('div');
   wrapper.className = 'tag-list';
 
@@ -475,11 +521,35 @@ function createTagList(note) {
   const actualTags = normalizeTags(note.tags);
   effectiveTags.forEach((tag) => {
     const removable = actualTags.includes(tag);
-    wrapper.appendChild(createTagChip(tag, {
+    const chip = createTagChip(tag, {
       isDefault: tag === DEFAULT_TAG,
       removable,
       onRemove: () => saveTagsForNote(note.id, actualTags.filter((value) => value !== tag))
-    }));
+    });
+
+    if (options.interactive) {
+      chip.classList.add('tag-chip-actionable');
+      chip.tabIndex = 0;
+      chip.setAttribute('role', 'button');
+      chip.setAttribute('aria-label', `Edit tags for ${note.title}`);
+      chip.addEventListener('click', (event) => {
+        if (event.target.closest('.tag-chip-remove')) {
+          return;
+        }
+        event.stopPropagation();
+        options.onTagClick?.(tag, chip);
+      });
+      chip.addEventListener('keydown', (event) => {
+        if (event.key !== 'Enter' && event.key !== ' ') {
+          return;
+        }
+        event.preventDefault();
+        event.stopPropagation();
+        options.onTagClick?.(tag, chip);
+      });
+    }
+
+    wrapper.appendChild(chip);
   });
 
   return wrapper;
@@ -556,8 +626,6 @@ function renderNotes() {
     title.className = 'note-title';
     title.textContent = `▶ ${note.title}`;
 
-    const tags = createTagList(note);
-
     const actions = document.createElement('div');
     actions.className = 'note-actions';
 
@@ -567,20 +635,39 @@ function renderNotes() {
     const tagEditorHost = document.createElement('div');
     tagEditorHost.className = 'note-tag-editor-host';
 
-    header.addEventListener('click', () => {
+    const closeTagEditor = () => {
+      tagEditorHost.innerHTML = '';
+      tagEditorHost.classList.remove('note-tag-editor-host-open');
+    };
+
+    const openTagEditor = () => {
+      tagEditorHost.innerHTML = '';
+      tagEditorHost.appendChild(createNoteTagEditor(note, closeTagEditor));
+      tagEditorHost.classList.add('note-tag-editor-host-open');
+    };
+
+    const toggleTagEditor = () => {
+      if (tagEditorHost.childElementCount > 0) {
+        closeTagEditor();
+        return;
+      }
+      openTagEditor();
+    };
+
+    const tags = createTagList(note, {
+      interactive: true,
+      onTagClick: () => openTagEditor()
+    });
+
+    header.addEventListener('click', (event) => {
+      if (event.target.closest('button, a, input, label, .tag-chip')) {
+        return;
+      }
       content.classList.toggle('expanded');
     });
 
     actions.appendChild(createActionButton('Edit', 'btn-note', () => editNote(note.id)));
-    actions.appendChild(createActionButton('Tags', 'btn-note', () => {
-      if (tagEditorHost.childElementCount > 0) {
-        tagEditorHost.innerHTML = '';
-        return;
-      }
-      tagEditorHost.appendChild(createNoteTagEditor(note, () => {
-        tagEditorHost.innerHTML = '';
-      }));
-    }));
+    actions.appendChild(createActionButton('Tags', 'btn-note', toggleTagEditor));
     actions.appendChild(createActionButton('Delete', 'btn-note', () => deleteNote(note.id)));
 
     const body = createRenderedBody(note.content);
@@ -601,10 +688,10 @@ function renderNotes() {
     titleWrap.appendChild(tags);
     header.appendChild(titleWrap);
     header.appendChild(actions);
-    content.appendChild(tagEditorHost);
     content.appendChild(body);
     content.appendChild(meta);
     noteCard.appendChild(header);
+    noteCard.appendChild(tagEditorHost);
     noteCard.appendChild(content);
     notesDiv.appendChild(noteCard);
   });

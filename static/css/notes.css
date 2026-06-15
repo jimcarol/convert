@@ -585,9 +585,29 @@ button:disabled {
   font-weight: 600;
 }
 
+.tag-chip-actionable {
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.tag-chip-actionable:hover {
+  background: #bfdbfe;
+  color: #1e40af;
+}
+
+.tag-chip-actionable:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.22);
+}
+
 .tag-chip-default {
   background: #e5e7eb;
   color: #4b5563;
+}
+
+.tag-chip-default.tag-chip-actionable:hover {
+  background: #d1d5db;
+  color: #374151;
 }
 
 .tag-chip-remove {
@@ -622,7 +642,16 @@ button:disabled {
 }
 
 .note-tag-editor-host {
-  margin-bottom: 14px;
+  display: none;
+  margin-top: 12px;
+}
+
+.note-tag-editor-host:empty {
+  margin-top: 0;
+}
+
+.note-tag-editor-host-open {
+  display: block;
 }
 
 .note-tag-editor {
@@ -789,6 +818,7 @@ button:disabled {
 }
 
 .markdown-body pre {
+  position: relative;
   padding: 0;
   border-radius: 10px;
   overflow-x: auto;
@@ -800,6 +830,35 @@ button:disabled {
   padding: 16px;
   min-width: max-content;
   line-height: 1.6;
+}
+
+.code-copy-button {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 1;
+  padding: 5px 10px;
+  border: 1px solid rgba(148, 163, 184, 0.4);
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.82);
+  color: #f8fafc;
+  font-size: 0.78rem;
+  line-height: 1.2;
+  backdrop-filter: blur(4px);
+}
+
+.code-copy-button:hover {
+  background: rgba(30, 41, 59, 0.94);
+}
+
+.code-copy-button-success {
+  background: rgba(22, 163, 74, 0.9);
+  color: #f0fdf4;
+}
+
+.code-copy-button-error {
+  background: rgba(220, 38, 38, 0.9);
+  color: #fef2f2;
 }
 
 .markdown-body hr {
