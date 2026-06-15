@@ -921,8 +921,11 @@ button:disabled {
   font-size: 0.95em;
 }
 
-.markdown-body pre {
+.code-block-shell {
   position: relative;
+}
+
+.markdown-body pre {
   padding: 0;
   border-radius: 10px;
   overflow-x: auto;
@@ -932,6 +935,7 @@ button:disabled {
 .markdown-body pre code {
   display: block;
   padding: 16px;
+  padding-right: 96px;
   min-width: max-content;
   line-height: 1.6;
 }
@@ -940,7 +944,7 @@ button:disabled {
   position: absolute;
   top: 10px;
   right: 10px;
-  z-index: 1;
+  z-index: 2;
   padding: 5px 10px;
   border: 1px solid rgba(148, 163, 184, 0.4);
   border-radius: 999px;

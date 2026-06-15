@@ -426,11 +426,16 @@ function showCopyButtonState(button, label, className = '') {
 function decorateCodeBlocks(container) {
   container.querySelectorAll('pre code').forEach((block) => {
     const pre = block.parentElement;
-    if (!pre || pre.querySelector('.code-copy-button')) {
+    if (!pre || pre.closest('.code-block-shell') || pre.querySelector('.code-copy-button')) {
       return;
     }
 
     pre.classList.add('code-copy-enabled');
+
+    const shell = document.createElement('div');
+    shell.className = 'code-block-shell';
+    pre.parentNode.insertBefore(shell, pre);
+    shell.appendChild(pre);
 
     const copyButton = document.createElement('button');
     copyButton.type = 'button';
@@ -453,7 +458,7 @@ function decorateCodeBlocks(container) {
       }, 1600);
     });
 
-    pre.appendChild(copyButton);
+    shell.appendChild(copyButton);
   });
 }
 
