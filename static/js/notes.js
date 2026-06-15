@@ -1,15 +1,13 @@
 const form = document.getElementById('note-form');
 const notesDiv = document.getElementById('notes');
-const noteIdInput = document.getElementById('note-id');
 const titleInput = document.getElementById('title');
 const contentInput = document.getElementById('content');
-const cancelBtn = document.getElementById('cancel-edit');
+const tagOptions = document.getElementById('tag-options');
 const noteFormShell = document.getElementById('note-form-shell');
 const noteFormTrigger = document.getElementById('note-form-trigger');
 const noteFormHeading = document.getElementById('note-form-heading');
 const noteFormSubheading = document.getElementById('note-form-subheading');
 const noteFormTriggerIcon = document.getElementById('note-form-trigger-icon');
-const tagOptions = document.getElementById('tag-options');
 const notesLayout = document.getElementById('notes-layout');
 const filterBar = document.getElementById('filter-bar');
 const filterOptions = document.getElementById('filter-options');
@@ -26,6 +24,7 @@ const loggedInArea = document.getElementById('logged-in-area');
 const loginDialog = document.getElementById('login-dialog');
 const loginPasswordInput = document.getElementById('login-password');
 const loginError = document.getElementById('login-error');
+const resetCreateBtn = document.getElementById('reset-create');
 const loginConfirmBtn = document.getElementById('login-confirm');
 const loginCancelBtn = document.getElementById('login-cancel');
 const logoutBtn = document.getElementById('logout-btn');
@@ -44,6 +43,8 @@ let currentNotes = [];
 let selectedFilterTags = new Set();
 let isFilterBarCollapsed = true;
 let isNoteFormCollapsed = true;
+let modalEditNoteId = null;
+let modalMode = null;
 
 marked.setOptions({
   gfm: true,
@@ -55,8 +56,8 @@ function updateAuthUI() {
   loggedInArea.style.display = isAuthenticated ? 'inline-flex' : 'none';
 }
 
-function toggleTextareaHeight() {
-  contentInput.classList.toggle('has-content', contentInput.value.trim().length > 0);
+function toggleTextareaHeight(textarea = contentInput) {
+  textarea.classList.toggle('has-content', textarea.value.trim().length > 0);
 }
 
 function showLoginDialog() {
@@ -173,14 +174,18 @@ function normalizeNote(note) {
   };
 }
 
-function getSelectedFormTags() {
-  return Array.from(tagOptions.querySelectorAll('input[type="checkbox"]:checked'))
+function getTagPickerRoot(root = tagOptions) {
+  return root;
+}
+
+function getSelectedFormTags(root = tagOptions) {
+  return Array.from(getTagPickerRoot(root).querySelectorAll('input[type="checkbox"]:checked'))
     .map((input) => input.value);
 }
 
-function setSelectedFormTags(tags) {
+function setSelectedFormTags(tags, root = tagOptions) {
   const selected = new Set(normalizeTags(tags));
-  tagOptions.querySelectorAll('input[type="checkbox"]').forEach((input) => {
+  getTagPickerRoot(root).querySelectorAll('input[type="checkbox"]').forEach((input) => {
     input.checked = selected.has(input.value);
   });
 }
@@ -204,11 +209,12 @@ function createTagPickerOption(tag, name, checked = false) {
   return label;
 }
 
-function renderFormTagPicker(tags = []) {
-  tagOptions.innerHTML = '';
+function renderFormTagPicker(tags = [], root = tagOptions, name = 'note-tags') {
+  const targetRoot = getTagPickerRoot(root);
+  targetRoot.innerHTML = '';
   const selected = new Set(normalizeTags(tags));
   AVAILABLE_TAGS.forEach((tag) => {
-    tagOptions.appendChild(createTagPickerOption(tag, 'note-tags', selected.has(tag)));
+    targetRoot.appendChild(createTagPickerOption(tag, name, selected.has(tag)));
   });
 }
 
@@ -303,16 +309,10 @@ function updateNoteFormState() {
   noteFormShell.classList.toggle('note-form-shell-collapsed', isNoteFormCollapsed);
   noteFormTrigger.setAttribute('aria-expanded', String(!isNoteFormCollapsed));
   noteFormTriggerIcon.textContent = isNoteFormCollapsed ? '+' : '−';
-
-  if (noteIdInput.value) {
-    noteFormHeading.textContent = 'Editing note';
-    noteFormSubheading.textContent = 'Update the fields below, then save or cancel.';
-  } else {
-    noteFormHeading.textContent = 'New note';
-    noteFormSubheading.textContent = isNoteFormCollapsed
-      ? 'Open the editor when you want to write or update a note.'
-      : 'Write markdown, code fences, and notes here.';
-  }
+  noteFormHeading.textContent = 'New note';
+  noteFormSubheading.textContent = isNoteFormCollapsed
+    ? 'Open the editor when you want to write a note.'
+    : 'Write markdown, code fences, and notes here.';
 }
 
 function expandNoteForm() {
@@ -616,6 +616,166 @@ function createNoteTagEditor(note, onClose) {
   return editor;
 }
 
+async function saveNote(note, id = null) {
+  if (isAuthenticated) {
+    const endpoint = id ? `/notes/${id}` : '/notes';
+    const method = id ? 'PUT' : 'POST';
+    const res = await fetch(endpoint, {
+      method,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(note)
+    });
+    if (res.status === 401) {
+      handleAuthError();
+      return false;
+    }
+    return res.ok;
+  }
+
+  const notes = getLocalNotes();
+  const now = new Date().toISOString();
+
+  if (id) {
+    const idx = notes.findIndex((entry) => String(entry.id) === String(id));
+    if (idx === -1) {
+      return false;
+    }
+    notes[idx].title = note.title;
+    notes[idx].content = note.content;
+    notes[idx].tags = note.tags;
+    notes[idx].updated_at = now;
+  } else {
+    notes.push({
+      ...note,
+      id: Date.now(),
+      created_at: now,
+      updated_at: now
+    });
+  }
+
+  saveLocalNotes(notes);
+  return true;
+}
+
+function buildNotePayload({ titleInput: titleField, contentInput: contentField, tagsRoot = tagOptions }) {
+  return {
+    title: titleField.value,
+    content: contentField.value,
+    tags: normalizeTags(getSelectedFormTags(tagsRoot))
+  };
+}
+
+function resetCreateForm() {
+  titleInput.value = '';
+  contentInput.value = '';
+  contentInput.classList.remove('has-content');
+  setSelectedFormTags([]);
+  collapseNoteForm();
+}
+
+function clearModalState() {
+  modalEditNoteId = null;
+  modalMode = null;
+  modalBody.innerHTML = '';
+}
+
+function openModal(mode) {
+  modalMode = mode;
+  modalOverlay.classList.add('active');
+  modalContent.style.display = 'block';
+}
+
+function closeModal() {
+  modalOverlay.classList.remove('active');
+  modalContent.style.display = 'none';
+  clearModalState();
+}
+
+function createModalEditForm(note) {
+  const wrapper = document.createElement('div');
+  wrapper.className = 'modal-edit-shell';
+
+  const title = document.createElement('h2');
+  title.className = 'modal-title';
+  title.textContent = `Edit ${note.title}`;
+
+  const editForm = document.createElement('form');
+  editForm.className = 'modal-edit-form';
+
+  const modalTitleInput = document.createElement('input');
+  modalTitleInput.type = 'text';
+  modalTitleInput.required = true;
+  modalTitleInput.value = note.title;
+  modalTitleInput.placeholder = 'Title';
+
+  const modalTagPicker = document.createElement('div');
+  modalTagPicker.className = 'tag-picker';
+  const modalTagHeader = document.createElement('div');
+  modalTagHeader.className = 'tag-picker-header';
+  const modalTagLabel = document.createElement('span');
+  modalTagLabel.className = 'tag-picker-label';
+  modalTagLabel.textContent = 'Tags';
+  const modalTagHelp = document.createElement('span');
+  modalTagHelp.className = 'tag-picker-help';
+  modalTagHelp.textContent = 'No selection falls back to default.';
+  const modalTagOptions = document.createElement('div');
+  modalTagOptions.className = 'tag-picker-options';
+  renderFormTagPicker(note.tags, modalTagOptions, 'modal-note-tags');
+  modalTagHeader.appendChild(modalTagLabel);
+  modalTagHeader.appendChild(modalTagHelp);
+  modalTagPicker.appendChild(modalTagHeader);
+  modalTagPicker.appendChild(modalTagOptions);
+
+  const modalContentInput = document.createElement('textarea');
+  modalContentInput.required = true;
+  modalContentInput.placeholder = 'Write markdown, code fences, and notes here...';
+  modalContentInput.value = note.content;
+  toggleTextareaHeight(modalContentInput);
+  modalContentInput.addEventListener('input', () => toggleTextareaHeight(modalContentInput));
+
+  const help = document.createElement('p');
+  help.className = 'form-help';
+  help.textContent = 'Saved content stays as markdown source. Notes are rendered as preview when displayed.';
+
+  const actions = document.createElement('div');
+  actions.className = 'form-actions modal-edit-actions';
+  const saveBtn = document.createElement('button');
+  saveBtn.type = 'submit';
+  saveBtn.className = 'btn-primary';
+  saveBtn.textContent = 'Save';
+  const cancelBtn = document.createElement('button');
+  cancelBtn.type = 'button';
+  cancelBtn.className = 'btn-danger';
+  cancelBtn.textContent = 'Cancel';
+  cancelBtn.addEventListener('click', closeModal);
+  actions.appendChild(saveBtn);
+  actions.appendChild(cancelBtn);
+
+  editForm.appendChild(modalTitleInput);
+  editForm.appendChild(modalTagPicker);
+  editForm.appendChild(modalContentInput);
+  editForm.appendChild(help);
+  editForm.appendChild(actions);
+
+  editForm.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const ok = await saveNote(buildNotePayload({
+      titleInput: modalTitleInput,
+      contentInput: modalContentInput,
+      tagsRoot: modalTagOptions
+    }), note.id);
+    if (!ok) {
+      return;
+    }
+    closeModal();
+    await fetchNotes();
+  });
+
+  wrapper.appendChild(title);
+  wrapper.appendChild(editForm);
+  return { wrapper, modalTitleInput };
+}
+
 async function fetchNotes() {
   let notes;
   if (isAuthenticated) {
@@ -755,58 +915,15 @@ function renderNotes() {
 
 form.addEventListener('submit', async (event) => {
   event.preventDefault();
-
-  const id = noteIdInput.value;
-  const note = {
-    title: titleInput.value,
-    content: contentInput.value,
-    tags: normalizeTags(getSelectedFormTags())
-  };
-
-  if (isAuthenticated) {
-    let res;
-    if (id) {
-      res = await fetch(`/notes/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(note)
-      });
-    } else {
-      res = await fetch('/notes', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(note)
-      });
-    }
-
-    if (res.status === 401) {
-      handleAuthError();
-      return;
-    }
-  } else {
-    const notes = getLocalNotes();
-    const now = new Date().toISOString();
-
-    if (id) {
-      const idx = notes.findIndex((entry) => String(entry.id) === String(id));
-      if (idx !== -1) {
-        notes[idx].title = note.title;
-        notes[idx].content = note.content;
-        notes[idx].tags = note.tags;
-        notes[idx].updated_at = now;
-      }
-    } else {
-      note.id = Date.now();
-      note.created_at = now;
-      note.updated_at = now;
-      notes.push(note);
-    }
-
-    saveLocalNotes(notes);
+  const ok = await saveNote(buildNotePayload({
+    titleInput,
+    contentInput
+  }));
+  if (!ok) {
+    return;
   }
-
-  resetForm();
-  fetchNotes();
+  resetCreateForm();
+  await fetchNotes();
 });
 
 async function deleteNote(id) {
@@ -825,8 +942,8 @@ async function deleteNote(id) {
     saveLocalNotes(notes);
   }
 
-  if (String(noteIdInput.value) === String(id)) {
-    resetForm();
+  if (String(modalEditNoteId) === String(id)) {
+    closeModal();
   }
   fetchNotes();
 }
@@ -837,14 +954,12 @@ function editNote(id) {
     return;
   }
 
-  noteIdInput.value = note.id;
-  titleInput.value = note.title;
-  setSelectedFormTags(note.tags);
-  contentInput.value = note.content;
-  toggleTextareaHeight();
-  cancelBtn.style.display = 'inline-flex';
-  expandNoteForm();
-  titleInput.focus();
+  modalEditNoteId = note.id;
+  modalBody.innerHTML = '';
+  const { wrapper, modalTitleInput } = createModalEditForm(note);
+  modalBody.appendChild(wrapper);
+  openModal('edit');
+  modalTitleInput.focus();
 }
 
 function expandNote(id) {
@@ -863,23 +978,7 @@ function expandNote(id) {
   modalBody.appendChild(title);
   modalBody.appendChild(body);
 
-  modalOverlay.classList.add('active');
-  modalContent.style.display = 'block';
-}
-
-function closeModal() {
-  modalOverlay.classList.remove('active');
-  modalContent.style.display = 'none';
-}
-
-function resetForm() {
-  noteIdInput.value = '';
-  titleInput.value = '';
-  setSelectedFormTags([]);
-  contentInput.value = '';
-  contentInput.classList.remove('has-content');
-  cancelBtn.style.display = 'none';
-  collapseNoteForm();
+  openModal('preview');
 }
 
 showMoreBtn.addEventListener('click', () => {
@@ -914,12 +1013,12 @@ noteFormTrigger.addEventListener('click', () => {
     return;
   }
 
-  if (!noteIdInput.value && !titleInput.value.trim() && !contentInput.value.trim() && getSelectedFormTags().length === 0) {
+  if (!titleInput.value.trim() && !contentInput.value.trim() && getSelectedFormTags().length === 0) {
     collapseNoteForm();
   }
 });
-cancelBtn.addEventListener('click', resetForm);
-contentInput.addEventListener('input', toggleTextareaHeight);
+contentInput.addEventListener('input', () => toggleTextareaHeight(contentInput));
+resetCreateBtn.addEventListener('click', resetCreateForm);
 loginBtn.addEventListener('click', showLoginDialog);
 loginConfirmBtn.addEventListener('click', doLogin);
 loginCancelBtn.addEventListener('click', hideLoginDialog);

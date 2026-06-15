@@ -818,6 +818,29 @@ button:disabled {
   right: 16px;
 }
 
+.modal-edit-shell {
+  display: flex;
+  flex-direction: column;
+}
+
+.modal-edit-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.modal-edit-form .tag-picker {
+  padding: 0;
+}
+
+.modal-edit-actions {
+  justify-content: flex-end;
+}
+
+.modal-edit-form textarea {
+  min-height: 320px;
+}
+
 .markdown-body {
   color: #374151;
   line-height: 1.7;

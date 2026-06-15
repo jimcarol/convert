@@ -77,7 +77,6 @@
           </button>
 
           <form id="note-form">
-            <input type="hidden" id="note-id" />
             <input type="text" id="title" placeholder="Title" required />
             <div class="tag-picker" id="form-tag-picker">
               <div class="tag-picker-header">
@@ -90,7 +89,7 @@
             <p class="form-help">Saved content stays as markdown source. Notes are rendered as preview when displayed.</p>
             <div class="form-actions">
               <button type="submit" class="btn-primary">Save</button>
-              <button type="button" id="cancel-edit" class="btn-danger" style="display:none;">Cancel</button>
+              <button type="button" id="reset-create" class="btn-secondary">Reset</button>
             </div>
           </form>
         </section>
