@@ -301,17 +301,98 @@ body {
   font-weight: 500;
 }
 
+.note-form-shell {
+  margin-bottom: 20px;
+  border: 1px solid #d1d5db;
+  border-radius: 16px;
+  background: #ffffff;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.05);
+  overflow: hidden;
+}
+
+.note-form-trigger {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 18px;
+  background: #ffffff;
+  color: #0f172a;
+  text-align: left;
+  transition: color 0.2s ease;
+}
+
+.note-form-trigger:hover {
+  background: #ffffff;
+}
+
+.note-form-trigger-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.note-form-trigger-copy strong {
+  font-size: 1rem;
+}
+
+.note-form-trigger-copy span {
+  color: #64748b;
+  font-size: 0.92rem;
+  line-height: 1.45;
+}
+
+.note-form-trigger-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+  border: 1px solid #cbd5e1;
+  border-radius: 999px;
+  background: #f8fafc;
+  color: #2563eb;
+  font-size: 1.2rem;
+  font-weight: 700;
+  line-height: 1;
+  transition: background-color 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+}
+
+.note-form-trigger:hover .note-form-trigger-icon {
+  background: #eff6ff;
+  border-color: #93c5fd;
+}
+
 #note-form {
   width: 100%;
   display: flex;
   flex-direction: column;
   gap: 12px;
-  margin-bottom: 20px;
-  padding: 16px;
-  border: 1px solid #d1d5db;
-  border-radius: 12px;
+  padding: 18px 16px 16px;
+  max-height: 1400px;
+  opacity: 1;
+  overflow: hidden;
   background: #ffffff;
-  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.05);
+  transition: max-height 0.24s ease, opacity 0.18s ease, padding-top 0.24s ease, padding-bottom 0.24s ease;
+}
+
+.note-form-shell-collapsed #note-form {
+  max-height: 0;
+  opacity: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  pointer-events: none;
+}
+
+.note-form-shell:not(.note-form-shell-collapsed) .note-form-trigger {
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.note-form-shell:not(.note-form-shell-collapsed) .note-form-trigger-icon {
+  transform: rotate(45deg);
 }
 
 .form-help {
@@ -402,7 +483,7 @@ textarea {
 
 textarea {
   resize: vertical;
-  min-height: 260px;
+  min-height: 220px;
   line-height: 1.5;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
 }
@@ -978,6 +1059,11 @@ button:disabled {
 
   .page-title {
     font-size: 1.6rem;
+  }
+
+  .note-form-trigger {
+    padding: 14px;
+    align-items: flex-start;
   }
 
   #note-form,

@@ -4,6 +4,11 @@ const noteIdInput = document.getElementById('note-id');
 const titleInput = document.getElementById('title');
 const contentInput = document.getElementById('content');
 const cancelBtn = document.getElementById('cancel-edit');
+const noteFormShell = document.getElementById('note-form-shell');
+const noteFormTrigger = document.getElementById('note-form-trigger');
+const noteFormHeading = document.getElementById('note-form-heading');
+const noteFormSubheading = document.getElementById('note-form-subheading');
+const noteFormTriggerIcon = document.getElementById('note-form-trigger-icon');
 const tagOptions = document.getElementById('tag-options');
 const notesLayout = document.getElementById('notes-layout');
 const filterBar = document.getElementById('filter-bar');
@@ -38,6 +43,7 @@ let isAuthenticated = localStorage.getItem('authenticated') === 'true';
 let currentNotes = [];
 let selectedFilterTags = new Set();
 let isFilterBarCollapsed = true;
+let isNoteFormCollapsed = true;
 
 marked.setOptions({
   gfm: true,
@@ -291,6 +297,32 @@ function updateFilterBarState() {
   toggleFilterBarBtn.textContent = isFilterBarCollapsed ? '›' : '‹';
   toggleFilterBarBtn.setAttribute('aria-label', isFilterBarCollapsed ? 'Expand filter bar' : 'Collapse filter bar');
   toggleFilterBarBtn.setAttribute('aria-expanded', String(!isFilterBarCollapsed));
+}
+
+function updateNoteFormState() {
+  noteFormShell.classList.toggle('note-form-shell-collapsed', isNoteFormCollapsed);
+  noteFormTrigger.setAttribute('aria-expanded', String(!isNoteFormCollapsed));
+  noteFormTriggerIcon.textContent = isNoteFormCollapsed ? '+' : '−';
+
+  if (noteIdInput.value) {
+    noteFormHeading.textContent = 'Editing note';
+    noteFormSubheading.textContent = 'Update the fields below, then save or cancel.';
+  } else {
+    noteFormHeading.textContent = 'New note';
+    noteFormSubheading.textContent = isNoteFormCollapsed
+      ? 'Open the editor when you want to write or update a note.'
+      : 'Write markdown, code fences, and notes here.';
+  }
+}
+
+function expandNoteForm() {
+  isNoteFormCollapsed = false;
+  updateNoteFormState();
+}
+
+function collapseNoteForm() {
+  isNoteFormCollapsed = true;
+  updateNoteFormState();
 }
 
 function normalizeCodeLanguage(language) {
@@ -790,6 +822,7 @@ function editNote(id) {
   contentInput.value = note.content;
   toggleTextareaHeight();
   cancelBtn.style.display = 'inline-flex';
+  expandNoteForm();
   titleInput.focus();
 }
 
@@ -825,6 +858,7 @@ function resetForm() {
   contentInput.value = '';
   contentInput.classList.remove('has-content');
   cancelBtn.style.display = 'none';
+  collapseNoteForm();
 }
 
 showMoreBtn.addEventListener('click', () => {
@@ -852,6 +886,17 @@ toggleFilterBarBtn.addEventListener('click', () => {
 });
 clearFiltersBtn.addEventListener('click', clearFilterTags);
 
+noteFormTrigger.addEventListener('click', () => {
+  if (isNoteFormCollapsed) {
+    expandNoteForm();
+    titleInput.focus();
+    return;
+  }
+
+  if (!noteIdInput.value && !titleInput.value.trim() && !contentInput.value.trim() && getSelectedFormTags().length === 0) {
+    collapseNoteForm();
+  }
+});
 cancelBtn.addEventListener('click', resetForm);
 contentInput.addEventListener('input', toggleTextareaHeight);
 loginBtn.addEventListener('click', showLoginDialog);
@@ -876,6 +921,7 @@ restoreFilterPreferences();
 renderFormTagPicker();
 renderFilterBar();
 updateFilterBarState();
+updateNoteFormState();
 updateAuthUI();
 toggleTextareaHeight();
 fetchNotes();
