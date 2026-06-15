@@ -638,6 +638,13 @@ async function fetchNotes() {
 function renderNotes() {
   notesDiv.innerHTML = '';
 
+  const closeAllTagEditors = () => {
+    notesDiv.querySelectorAll('.note-tag-editor-host-open').forEach((host) => {
+      host.innerHTML = '';
+      host.classList.remove('note-tag-editor-host-open');
+    });
+  };
+
   const filteredNotes = getFilteredNotes();
   notesEmptyState.style.display = filteredNotes.length === 0 ? 'block' : 'none';
 
@@ -673,6 +680,7 @@ function renderNotes() {
     };
 
     const openTagEditor = () => {
+      closeAllTagEditors();
       tagEditorHost.innerHTML = '';
       tagEditorHost.appendChild(createNoteTagEditor(note, closeTagEditor));
       tagEditorHost.classList.add('note-tag-editor-host-open');
@@ -695,12 +703,22 @@ function renderNotes() {
       if (event.target.closest('button, a, input, label, .tag-chip')) {
         return;
       }
+      const willCollapse = content.classList.contains('expanded');
       content.classList.toggle('expanded');
+      if (willCollapse) {
+        closeTagEditor();
+      }
     });
 
-    actions.appendChild(createActionButton('Edit', 'btn-note', () => editNote(note.id)));
+    actions.appendChild(createActionButton('Edit', 'btn-note', () => {
+      closeTagEditor();
+      editNote(note.id);
+    }));
     actions.appendChild(createActionButton('Tags', 'btn-note', toggleTagEditor));
-    actions.appendChild(createActionButton('Delete', 'btn-note', () => deleteNote(note.id)));
+    actions.appendChild(createActionButton('Delete', 'btn-note', async () => {
+      closeTagEditor();
+      await deleteNote(note.id);
+    }));
 
     const body = createRenderedBody(note.content);
 
@@ -711,7 +729,10 @@ function renderNotes() {
     updated.className = 'note-updated';
     updated.textContent = `Updated: ${new Date(note.updated_at).toLocaleString()}`;
 
-    const expandBtn = createActionButton('Expand', 'btn-expand', () => expandNote(note.id));
+    const expandBtn = createActionButton('Expand', 'btn-expand', () => {
+      closeTagEditor();
+      expandNote(note.id);
+    });
 
     meta.appendChild(updated);
     meta.appendChild(expandBtn);
