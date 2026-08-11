@@ -17,6 +17,7 @@ type Note struct {
     Title    string    `json:"title"`
     Content  string    `json:"content"`
     Tags     []string  `json:"tags,omitempty"`
+    Urgent   bool      `json:"urgent,omitempty"`
     CreatedAt time.Time `json:"created_at"`
     UpdatedAt time.Time `json:"updated_at"`
 }
@@ -144,6 +145,7 @@ func UpdateNote(c *gin.Context) {
 	existing.Title = note.Title
 	existing.Content = note.Content
 	existing.Tags = normalizeTags(note.Tags)
+	existing.Urgent = note.Urgent
 	existing.UpdatedAt = time.Now()
 	notes[id] = existing
 	saveNotes()

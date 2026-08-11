@@ -8,6 +8,26 @@
   <link rel="stylesheet" href="/static/css/notes.css">
 </head>
 <body>
+  <div class="urgent-banner" id="urgent-banner" hidden>
+    <button type="button" class="urgent-banner-open" id="urgent-banner-open">
+      <span class="urgent-banner-icon" aria-hidden="true">⚑</span>
+      <span class="urgent-banner-count" id="urgent-banner-count"></span>
+      <span class="urgent-banner-title" id="urgent-banner-title"></span>
+    </button>
+    <div class="urgent-banner-chips" id="urgent-banner-chips"></div>
+    <button
+      type="button"
+      class="urgent-banner-toggle"
+      id="urgent-banner-toggle"
+      aria-expanded="false"
+      aria-label="Show all urgent notes"
+      hidden
+    >
+      <span id="urgent-banner-toggle-icon" aria-hidden="true">▾</span>
+    </button>
+    <div class="urgent-banner-list" id="urgent-banner-list" hidden></div>
+  </div>
+
   <div class="modal-overlay" id="modal-overlay"></div>
   <div class="modal-content" id="modal-content">
     <button class="modal-close btn-danger" id="modal-close" type="button">Close</button>
@@ -18,6 +38,7 @@
     <div class="page-header">
       <h1 class="page-title">Online Notes</h1>
       <div class="auth-area" id="auth-area">
+        <a href="/" class="home-link" aria-label="Back to home page">Home</a>
         <button id="login-btn" class="btn-auth" type="button">Login</button>
         <span class="logged-in-area" id="logged-in-area">
           <span class="sync-badge">Synced</span>

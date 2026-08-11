@@ -32,6 +32,14 @@ const modalOverlay = document.getElementById('modal-overlay');
 const modalContent = document.getElementById('modal-content');
 const modalBody = document.getElementById('modal-body');
 const modalClose = document.getElementById('modal-close');
+const urgentBanner = document.getElementById('urgent-banner');
+const urgentBannerOpen = document.getElementById('urgent-banner-open');
+const urgentBannerCount = document.getElementById('urgent-banner-count');
+const urgentBannerTitle = document.getElementById('urgent-banner-title');
+const urgentBannerToggle = document.getElementById('urgent-banner-toggle');
+const urgentBannerToggleIcon = document.getElementById('urgent-banner-toggle-icon');
+const urgentBannerList = document.getElementById('urgent-banner-list');
+const urgentBannerChips = document.getElementById('urgent-banner-chips');
 const VISIBLE_COUNT = 5;
 const AVAILABLE_TAGS = ['work', 'personal', 'idea', 'todo'];
 const DEFAULT_TAG = 'default';
@@ -43,6 +51,7 @@ let currentNotes = [];
 let selectedFilterTags = new Set();
 let isFilterBarCollapsed = true;
 let isNoteFormCollapsed = true;
+let isUrgentListOpen = false;
 let modalEditNoteId = null;
 let modalMode = null;
 
@@ -170,8 +179,79 @@ function getEffectiveTags(note) {
 function normalizeNote(note) {
   return {
     ...note,
-    tags: normalizeTags(note?.tags)
+    tags: normalizeTags(note?.tags),
+    urgent: note?.urgent === true
   };
+}
+
+function getUrgentNotes() {
+  return currentNotes.filter((note) => note.urgent);
+}
+
+function renderUrgentBanner() {
+  const urgentNotes = getUrgentNotes();
+  const hasUrgent = urgentNotes.length > 0;
+
+  urgentBanner.hidden = !hasUrgent;
+  document.body.classList.toggle('has-urgent-banner', hasUrgent);
+  if (!hasUrgent) {
+    isUrgentListOpen = false;
+    return;
+  }
+
+  const first = urgentNotes[0];
+  urgentBannerCount.textContent = urgentNotes.length === 1 ? '1 urgent note' : `${urgentNotes.length} urgent notes`;
+  urgentBannerTitle.textContent = `· ${first.title}`;
+  urgentBannerOpen.setAttribute('aria-label', `Open urgent note: ${first.title}`);
+
+  urgentBannerChips.innerHTML = '';
+  urgentNotes.slice(0, 3).forEach((note) => {
+    const chip = document.createElement('button');
+    chip.type = 'button';
+    chip.className = 'urgent-banner-chip';
+    chip.textContent = note.title;
+    chip.setAttribute('aria-label', `Open urgent note: ${note.title}`);
+    chip.addEventListener('click', () => expandNote(note.id));
+    urgentBannerChips.appendChild(chip);
+  });
+
+  const hasMultiple = urgentNotes.length > 1;
+  urgentBannerToggle.hidden = !hasMultiple;
+  if (!hasMultiple) {
+    isUrgentListOpen = false;
+  }
+
+  urgentBannerList.hidden = !isUrgentListOpen;
+  urgentBannerToggle.setAttribute('aria-expanded', String(isUrgentListOpen));
+  urgentBannerToggleIcon.textContent = isUrgentListOpen ? '▴' : '▾';
+
+  if (!isUrgentListOpen) {
+    return;
+  }
+
+  urgentBannerList.innerHTML = '';
+  urgentNotes.forEach((note) => {
+    const item = document.createElement('button');
+    item.type = 'button';
+    item.className = 'urgent-banner-item';
+
+    const itemTitle = document.createElement('span');
+    itemTitle.className = 'urgent-banner-item-title';
+    itemTitle.textContent = note.title;
+
+    const itemTime = document.createElement('span');
+    itemTime.className = 'urgent-banner-item-time';
+    itemTime.textContent = new Date(note.updated_at).toLocaleString();
+
+    item.appendChild(itemTitle);
+    item.appendChild(itemTime);
+    item.addEventListener('click', () => {
+      isUrgentListOpen = false;
+      renderUrgentBanner();
+      expandNote(note.id);
+    });
+    urgentBannerList.appendChild(item);
+  });
 }
 
 function getTagPickerRoot(root = tagOptions) {
@@ -500,7 +580,8 @@ async function saveTagsForNote(id, tags) {
       body: JSON.stringify({
         title: note.title,
         content: note.content,
-        tags: normalizedTags
+        tags: normalizedTags,
+        urgent: note.urgent === true
       })
     });
 
@@ -516,6 +597,45 @@ async function saveTagsForNote(id, tags) {
     }
 
     notes[idx].tags = normalizedTags;
+    notes[idx].updated_at = new Date().toISOString();
+    saveLocalNotes(notes);
+  }
+
+  await fetchNotes();
+}
+
+async function toggleUrgentNote(id) {
+  const note = getNoteById(id);
+  if (!note) {
+    return;
+  }
+
+  const urgent = !note.urgent;
+
+  if (isAuthenticated) {
+    const res = await fetch(`/notes/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title: note.title,
+        content: note.content,
+        tags: normalizeTags(note.tags),
+        urgent
+      })
+    });
+
+    if (res.status === 401) {
+      handleAuthError();
+      return;
+    }
+  } else {
+    const notes = getLocalNotes();
+    const idx = notes.findIndex((entry) => String(entry.id) === String(id));
+    if (idx === -1) {
+      return;
+    }
+
+    notes[idx].urgent = urgent;
     notes[idx].updated_at = new Date().toISOString();
     saveLocalNotes(notes);
   }
@@ -648,6 +768,7 @@ async function saveNote(note, id = null) {
     notes[idx].title = note.title;
     notes[idx].content = note.content;
     notes[idx].tags = note.tags;
+    notes[idx].urgent = note.urgent === true;
     notes[idx].updated_at = now;
   } else {
     notes.push({
@@ -662,11 +783,12 @@ async function saveNote(note, id = null) {
   return true;
 }
 
-function buildNotePayload({ titleInput: titleField, contentInput: contentField, tagsRoot = tagOptions }) {
+function buildNotePayload({ titleInput: titleField, contentInput: contentField, tagsRoot = tagOptions, urgent = false }) {
   return {
     title: titleField.value,
     content: contentField.value,
-    tags: normalizeTags(getSelectedFormTags(tagsRoot))
+    tags: normalizeTags(getSelectedFormTags(tagsRoot)),
+    urgent
   };
 }
 
@@ -767,7 +889,8 @@ function createModalEditForm(note) {
     const ok = await saveNote(buildNotePayload({
       titleInput: modalTitleInput,
       contentInput: modalContentInput,
-      tagsRoot: modalTagOptions
+      tagsRoot: modalTagOptions,
+      urgent: note.urgent
     }), note.id);
     if (!ok) {
       return;
@@ -795,8 +918,14 @@ async function fetchNotes() {
   }
 
   currentNotes = Array.isArray(notes)
-    ? notes.map(normalizeNote).sort((a, b) => (b.updated_at || '').localeCompare(a.updated_at || ''))
+    ? notes.map(normalizeNote).sort((a, b) => {
+        if (a.urgent !== b.urgent) {
+          return a.urgent ? -1 : 1;
+        }
+        return (b.updated_at || '').localeCompare(a.updated_at || '');
+      })
     : [];
+  renderUrgentBanner();
   renderNotes();
 }
 
@@ -815,7 +944,7 @@ function renderNotes() {
 
   filteredNotes.forEach((note, index) => {
     const noteCard = document.createElement('div');
-    noteCard.className = 'note';
+    noteCard.className = note.urgent ? 'note note-urgent' : 'note';
     if (index >= VISIBLE_COUNT) {
       noteCard.style.display = 'none';
     }
@@ -875,6 +1004,10 @@ function renderNotes() {
       }
     });
 
+    actions.appendChild(createActionButton(note.urgent ? '⚑ Urgent' : '⚑ Flag', note.urgent ? 'btn-urgent btn-urgent-active' : 'btn-urgent', async () => {
+      closeTagEditor();
+      await toggleUrgentNote(note.id);
+    }));
     actions.appendChild(createActionButton('Edit', 'btn-note', () => {
       closeTagEditor();
       editNote(note.id);
@@ -903,6 +1036,12 @@ function renderNotes() {
     meta.appendChild(expandBtn);
 
     titleWrap.appendChild(title);
+    if (note.urgent) {
+      const badge = document.createElement('span');
+      badge.className = 'urgent-badge';
+      badge.textContent = '⚑ Urgent';
+      titleWrap.appendChild(badge);
+    }
     titleWrap.appendChild(tags);
     header.appendChild(titleWrap);
     header.appendChild(actions);
@@ -1030,6 +1169,16 @@ loginCancelBtn.addEventListener('click', hideLoginDialog);
 logoutBtn.addEventListener('click', doLogout);
 modalClose.addEventListener('click', closeModal);
 modalOverlay.addEventListener('click', closeModal);
+urgentBannerOpen.addEventListener('click', () => {
+  const first = getUrgentNotes()[0];
+  if (first) {
+    expandNote(first.id);
+  }
+});
+urgentBannerToggle.addEventListener('click', () => {
+  isUrgentListOpen = !isUrgentListOpen;
+  renderUrgentBanner();
+});
 loginPasswordInput.addEventListener('keydown', (event) => {
   if (event.key === 'Enter') {
     doLogin();
