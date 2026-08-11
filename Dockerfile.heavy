@@ -13,6 +13,19 @@ RUN go build -o /out/heavy ./cmd/heavy
 FROM alpine:latest
 RUN apk --no-cache add ca-certificates libreoffice openjdk11-jre font-noto-cjk font-wqy-zenhei
 
+ARG VERSION="dev"
+ARG GIT_COMMIT="unknown"
+ARG BUILD_DATE=""
+ARG FEATURES=""
+
+LABEL org.opencontainers.image.title="converter-heavy" \
+      org.opencontainers.image.version="${VERSION}" \
+      org.opencontainers.image.revision="${GIT_COMMIT}" \
+      org.opencontainers.image.created="${BUILD_DATE}" \
+      org.opencontainers.image.description="Heavy converter: lite features + LibreOffice document conversion" \
+      app.variant="heavy" \
+      app.features="${FEATURES}"
+
 WORKDIR /root/
 COPY --from=builder /out/heavy ./heavy
 

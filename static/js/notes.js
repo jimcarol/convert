@@ -40,11 +40,16 @@ const urgentBannerToggle = document.getElementById('urgent-banner-toggle');
 const urgentBannerToggleIcon = document.getElementById('urgent-banner-toggle-icon');
 const urgentBannerList = document.getElementById('urgent-banner-list');
 const urgentBannerChips = document.getElementById('urgent-banner-chips');
+const urgentAlertToast = document.getElementById('urgent-alert-toast');
+const urgentAlertToastText = document.getElementById('urgent-alert-toast-text');
+const urgentAlertToastOpen = document.getElementById('urgent-alert-toast-open');
+const urgentAlertToastClose = document.getElementById('urgent-alert-toast-close');
 const VISIBLE_COUNT = 5;
 const AVAILABLE_TAGS = ['work', 'personal', 'idea', 'todo'];
 const DEFAULT_TAG = 'default';
 const FILTER_TAGS_STORAGE_KEY = 'notes_filter_tags';
 const FILTER_BAR_COLLAPSED_STORAGE_KEY = 'notes_filter_bar_collapsed';
+const URGENT_ALERT_DATE_STORAGE_KEY = 'notes_urgent_alert_date';
 
 let isAuthenticated = localStorage.getItem('authenticated') === 'true';
 let currentNotes = [];
@@ -186,6 +191,141 @@ function normalizeNote(note) {
 
 function getUrgentNotes() {
   return currentNotes.filter((note) => note.urgent);
+}
+
+function getTodayKey() {
+  const now = new Date();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${now.getFullYear()}-${month}-${day}`;
+}
+
+let alertAudioCtx = null;
+let pendingUrgentAlertNotes = null;
+// Three tones at 0.18s intervals, each 0.2s long: chime ends ~0.56s in.
+const ALERT_CHIME_DURATION_MS = 700;
+
+function getAlertAudioContext() {
+  if (!alertAudioCtx) {
+    const AudioContextCtor = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextCtor) {
+      return null;
+    }
+    try {
+      alertAudioCtx = new AudioContextCtor();
+    } catch {
+      return null;
+    }
+  }
+  return alertAudioCtx;
+}
+
+function playAlertChime() {
+  try {
+    const ctx = getAlertAudioContext();
+    if (!ctx || ctx.state === 'suspended') {
+      return false;
+    }
+    [880, 660, 880].forEach((frequency, index) => {
+      const startAt = ctx.currentTime + index * 0.18;
+      const oscillator = ctx.createOscillator();
+      const gain = ctx.createGain();
+      oscillator.type = 'sine';
+      oscillator.frequency.value = frequency;
+      gain.gain.setValueAtTime(0.0001, startAt);
+      gain.gain.exponentialRampToValueAtTime(0.18, startAt + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, startAt + 0.16);
+      oscillator.connect(gain).connect(ctx.destination);
+      oscillator.start(startAt);
+      oscillator.stop(startAt + 0.2);
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function unlockAudioAndPlayPendingAlert() {
+  const pending = pendingUrgentAlertNotes;
+  if (!pending) {
+    return;
+  }
+  pendingUrgentAlertNotes = null;
+
+  const ctx = getAlertAudioContext();
+  const play = () => {
+    playAlertChime();
+    window.setTimeout(() => speakUrgentAlert(pending), ALERT_CHIME_DURATION_MS);
+  };
+
+  if (ctx && ctx.state === 'suspended') {
+    ctx.resume().then(play).catch(() => speakUrgentAlert(pending));
+    return;
+  }
+  play();
+}
+
+function speakUrgentAlert(urgentNotes) {
+  if (!('speechSynthesis' in window)) {
+    return;
+  }
+
+  const message = urgentNotes.length === 1
+    ? `有 urgent note，${urgentNotes[0].title}，需要处理`
+    : `有 ${urgentNotes.length} 条 urgent note 需要处理，第一条是，${urgentNotes[0].title}`;
+
+  try {
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(message);
+    utterance.lang = 'zh-CN';
+    window.speechSynthesis.speak(utterance);
+  } catch {
+  }
+}
+
+let urgentAlertToastTimer = null;
+
+function showUrgentAlertToast(urgentNotes) {
+  const first = urgentNotes[0];
+  urgentAlertToastText.textContent = urgentNotes.length === 1
+    ? `有 urgent note「${first.title}」需要处理`
+    : `有 ${urgentNotes.length} 条 urgent note 需要处理，第一条:「${first.title}」`;
+
+  urgentAlertToastOpen.onclick = () => {
+    hideUrgentAlertToast();
+    expandNote(first.id);
+  };
+  urgentAlertToastClose.onclick = hideUrgentAlertToast;
+
+  urgentAlertToast.hidden = false;
+  window.clearTimeout(urgentAlertToastTimer);
+  urgentAlertToastTimer = window.setTimeout(hideUrgentAlertToast, 12000);
+}
+
+function hideUrgentAlertToast() {
+  urgentAlertToast.hidden = true;
+  window.clearTimeout(urgentAlertToastTimer);
+}
+
+function maybePlayDailyUrgentAlert() {
+  const urgentNotes = getUrgentNotes();
+  if (urgentNotes.length === 0) {
+    return;
+  }
+
+  const today = getTodayKey();
+  // if (localStorage.getItem(URGENT_ALERT_DATE_STORAGE_KEY) === today) {
+  //   return;
+  // }
+  localStorage.setItem(URGENT_ALERT_DATE_STORAGE_KEY, today);
+
+  showUrgentAlertToast(urgentNotes);
+  if (playAlertChime()) {
+    window.setTimeout(() => speakUrgentAlert(urgentNotes), ALERT_CHIME_DURATION_MS);
+    return;
+  }
+  // Browser blocked autoplay: replay sound + speech on the first user gesture.
+  pendingUrgentAlertNotes = urgentNotes;
 }
 
 function renderUrgentBanner() {
@@ -1191,6 +1331,10 @@ document.addEventListener('keydown', (event) => {
   }
 });
 
+// Browsers block audio until a user gesture: unlock and replay any pending alert.
+document.addEventListener('pointerdown', unlockAudioAndPlayPendingAlert);
+document.addEventListener('keydown', unlockAudioAndPlayPendingAlert);
+
 restoreFilterPreferences();
 renderFormTagPicker();
 renderFilterBar();
@@ -1198,4 +1342,4 @@ updateFilterBarState();
 updateNoteFormState();
 updateAuthUI();
 toggleTextareaHeight();
-fetchNotes();
+fetchNotes().then(maybePlayDailyUrgentAlert);

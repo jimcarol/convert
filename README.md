@@ -165,9 +165,27 @@ docker push jimhsx/convert:${tag_name}-amd64
 ## Docker (Split lite/heavy)
 
 ### Build
+Each build stamps the image with labels (version, git commit, build date, feature list)
+via build args, so you can later inspect what a given image contains:
+
 ```shell
-docker buildx build --platform linux/amd64 --no-cache -f Dockerfile.lite -t converter-lite:${tag_name}-amd64 .
-docker buildx build --platform linux/amd64 --no-cache -f Dockerfile.heavy -t converter-heavy:${tag_name}-amd64 .
+export VERSION="${tag_name}"
+export GIT_COMMIT="$(git rev-parse --short HEAD)"
+export BUILD_DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+export FEATURES="notes-urgent-banner,notes-home-link"   # edit per release
+
+docker buildx build --platform linux/amd64 --no-cache -f Dockerfile.lite \
+  --build-arg VERSION --build-arg GIT_COMMIT --build-arg BUILD_DATE --build-arg FEATURES \
+  -t converter-lite:${tag_name}-amd64 .
+docker buildx build --platform linux/amd64 --no-cache -f Dockerfile.heavy \
+  --build-arg VERSION --build-arg GIT_COMMIT --build-arg BUILD_DATE --build-arg FEATURES \
+  -t converter-heavy:${tag_name}-amd64 .
+```
+
+### Inspect image labels
+```shell
+docker inspect -f '{{json .Config.Labels}}' jimhsx/convert-lite:${tag_name}-amd64 | jq
+docker inspect -f '{{ index .Config.Labels "app.features" }}' jimhsx/convert-lite:${tag_name}-amd64
 ```
 
 ### Tag + Push

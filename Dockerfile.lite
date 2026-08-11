@@ -10,6 +10,19 @@ RUN CGO_ENABLED=0 GOOS=linux go build -o /out/lite ./cmd/lite
 FROM alpine:latest
 RUN apk --no-cache add ca-certificates
 
+ARG VERSION="dev"
+ARG GIT_COMMIT="unknown"
+ARG BUILD_DATE=""
+ARG FEATURES=""
+
+LABEL org.opencontainers.image.title="converter-lite" \
+      org.opencontainers.image.version="${VERSION}" \
+      org.opencontainers.image.revision="${GIT_COMMIT}" \
+      org.opencontainers.image.created="${BUILD_DATE}" \
+      org.opencontainers.image.description="Lite converter: file convert, png2pdf, gif, online notes, password vault" \
+      app.variant="lite" \
+      app.features="${FEATURES}"
+
 WORKDIR /root/
 COPY --from=builder /out/lite ./lite
 COPY --from=builder /app/templates ./templates
