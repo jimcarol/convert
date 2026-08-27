@@ -1,0 +1,35 @@
+FROM golang:1.24.2-alpine AS builder
+
+WORKDIR /app
+COPY go.mod go.sum ./
+RUN go mod download
+
+COPY . .
+RUN CGO_ENABLED=0 GOOS=linux go build -o /out/tts ./cmd/tts
+
+FROM alpine:latest
+RUN apk --no-cache add ca-certificates python3 py3-pip \
+ && python3 -m venv /opt/tts-venv \
+ && /opt/tts-venv/bin/pip install --no-cache-dir edge-tts \
+ && ln -s /opt/tts-venv/bin/edge-tts /usr/local/bin/edge-tts
+
+ARG VERSION="dev"
+ARG GIT_COMMIT="unknown"
+ARG BUILD_DATE=""
+
+LABEL org.opencontainers.image.title="converter-tts" \
+      org.opencontainers.image.version="${VERSION}" \
+      org.opencontainers.image.revision="${GIT_COMMIT}" \
+      org.opencontainers.image.created="${BUILD_DATE}" \
+      org.opencontainers.image.description="Text-to-speech service (edge-tts)"
+
+WORKDIR /root/
+COPY --from=builder /out/tts ./tts
+COPY --from=builder /app/templates ./templates
+
+EXPOSE 8080
+
+ENV JWT_SECRET=""
+ENV PORT="8080"
+
+CMD ["./tts"]

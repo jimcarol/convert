@@ -26,12 +26,23 @@ services:
       - ./tmp:/root/tmp
     restart: unless-stopped
 
+  tts:
+    build:
+      context: .
+      dockerfile: Dockerfile.tts
+    container_name: converter-tts
+    environment:
+      JWT_SECRET: ${JWT_SECRET:-dev-jwt-secret-change-me}
+      PORT: "8080"
+    restart: unless-stopped
+
   caddy:
     image: caddy:2-alpine
     container_name: converter-caddy
     depends_on:
       - lite
       - heavy
+      - tts
     ports:
       - "8080:80"
     volumes:

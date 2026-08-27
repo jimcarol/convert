@@ -1,9 +1,11 @@
 :80 {
     @heavy_convert path /concat /convert /upload-gif
     @heavy_download path /download/*
+    @tts path /tts /tts/*
 
     reverse_proxy @heavy_convert heavy:8080
     reverse_proxy @heavy_download heavy:8080
+    reverse_proxy @tts tts:8080
 
     reverse_proxy lite:8080
 }

@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Text To Speech</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: "Segoe UI", sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: #f8f9fa;
+      color: #333;
+    }
+    header {
+      display: flex;
+      align-items: center;
+      padding: 1rem;
+      background-color: #007bff;
+      color: white;
+    }
+    header h1 {
+      flex: 1;
+      text-align: center;
+      font-size: 1.2rem;
+      margin: 0;
+    }
+    header a {
+      color: white;
+      text-decoration: none;
+      font-weight: bold;
+    }
+    main {
+      padding: 1rem;
+      max-width: 600px;
+      margin: auto;
+    }
+    textarea {
+      width: 100%;
+      padding: 0.75rem;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      font-size: 1rem;
+      resize: vertical;
+    }
+    select {
+      width: 100%;
+      margin-top: 0.75rem;
+      padding: 0.6rem;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      font-size: 1rem;
+      background: white;
+    }
+    .char-count {
+      text-align: right;
+      font-size: 0.8rem;
+      color: #999;
+      margin-top: 0.25rem;
+    }
+    .slider-row {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-top: 0.75rem;
+      font-size: 0.9rem;
+    }
+    .slider-row label {
+      width: 3.5rem;
+      color: #555;
+    }
+    .slider-row input[type="range"] {
+      flex: 1;
+    }
+    .slider-row .slider-value {
+      width: 4rem;
+      text-align: right;
+      color: #007bff;
+      font-variant-numeric: tabular-nums;
+    }
+    button {
+      width: 100%;
+      margin-top: 0.75rem;
+      padding: 0.75rem;
+      background-color: #28a745;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-size: 1rem;
+      cursor: pointer;
+    }
+    button:hover { background-color: #218838; }
+    button:disabled { background-color: #6c757d; cursor: not-allowed; }
+    #result { margin-top: 1rem; }
+    #result audio { width: 100%; margin-top: 0.5rem; }
+    #result a {
+      display: inline-block;
+      margin-top: 0.5rem;
+      color: #007bff;
+    }
+    .error { color: #dc3545; }
+  </style>
+</head>
+<body>
+  <header>
+    <a href="/">Home</a>
+    <h1>Text To Speech</h1>
+  </header>
+  <main>
+    <form id="ttsForm">
+      <textarea id="text" rows="6" placeholder="输入要转换的文字（最多 3000 字）"></textarea>
+      <div class="char-count"><span id="charCount">0</span>/3000</div>
+      <select id="voice"><option value="">加载声音列表中...</option></select>
+      <div class="slider-row">
+        <label for="pitch">音调</label>
+        <input type="range" id="pitch" min="-50" max="50" value="45" />
+        <span class="slider-value" id="pitchValue">+45Hz</span>
+      </div>
+      <div class="slider-row">
+        <label for="rate">语速</label>
+        <input type="range" id="rate" min="-50" max="100" value="-10" />
+        <span class="slider-value" id="rateValue">-10%</span>
+      </div>
+      <button type="submit" id="submitButton">生成语音</button>
+    </form>
+    <div id="result"></div>
+  </main>
+
+  <script>
+    const textInput = document.getElementById("text");
+    const charCount = document.getElementById("charCount");
+    const voiceSelect = document.getElementById("voice");
+    const pitchInput = document.getElementById("pitch");
+    const pitchValue = document.getElementById("pitchValue");
+    const rateInput = document.getElementById("rate");
+    const rateValue = document.getElementById("rateValue");
+    const form = document.getElementById("ttsForm");
+    const result = document.getElementById("result");
+    const submitButton = document.getElementById("submitButton");
+
+    textInput.addEventListener("input", () => {
+      charCount.textContent = Array.from(textInput.value).length;
+    });
+
+    const fmtSigned = (v, unit) => (v > 0 ? "+" : "") + v + unit;
+    pitchInput.addEventListener("input", () => {
+      pitchValue.textContent = fmtSigned(Number(pitchInput.value), "Hz");
+    });
+    rateInput.addEventListener("input", () => {
+      rateValue.textContent = fmtSigned(Number(rateInput.value), "%");
+    });
+
+    // 加载声音列表；401 说明未登录
+    fetch("/tts/voices").then((res) => {
+      if (res.status === 401) {
+        voiceSelect.innerHTML = '<option value="">请先在首页登录</option>';
+        submitButton.disabled = true;
+        return null;
+      }
+      return res.json();
+    }).then((data) => {
+      if (!data) return;
+      voiceSelect.innerHTML = data.voices
+        .map((v) => `<option value="${v.id}">${v.label}</option>`)
+        .join("");
+    }).catch(() => {
+      voiceSelect.innerHTML = '<option value="">声音列表加载失败</option>';
+    });
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      submitButton.disabled = true;
+      submitButton.textContent = "生成中...";
+      result.innerHTML = "";
+      try {
+        const res = await fetch("/tts", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            text: textInput.value,
+            voice: voiceSelect.value,
+            pitch: Number(pitchInput.value),
+            rate: Number(rateInput.value),
+          }),
+        });
+        const data = await res.json();
+        if (res.ok && data.download_url) {
+          result.innerHTML = `
+            <audio controls autoplay src="${data.download_url}"></audio>
+            <br/>
+            <a href="${data.download_url}">下载 MP3</a>
+          `;
+        } else if (res.status === 401) {
+          result.innerHTML = '<p class="error">未登录，请先在首页登录。</p>';
+        } else {
+          result.innerHTML = `<p class="error">${data.error || "生成失败"}</p>`;
+        }
+      } catch {
+        result.innerHTML = '<p class="error">网络错误，请重试。</p>';
+      } finally {
+        submitButton.disabled = false;
+        submitButton.textContent = "生成语音";
+      }
+    });
+  </script>
+</body>
+</html>
