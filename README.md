@@ -284,3 +284,57 @@ Stop and remove containers:
 ```shell
 docker compose down
 ```
+
+---
+
+## Video Service (`cmd/video`, standalone)
+
+AI video rework pipeline: upload a video, optionally **face-swap** it (FaceFusion) and/or **re-voice** it (faster-whisper → Kimi rewrite → edge-tts), then download the result. Runs as an independent process (default `127.0.0.1:8090`), separate from `lite`/`heavy`/`tts`.
+
+### Pipeline
+
+```
+video.mp4 + face.png
+├── revoice line:  ffmpeg extract -> faster-whisper transcribe -> Kimi rewrite -> edge-tts
+├── faceswap line: facefusion headless-run (--execution-providers coreml, concurrency = 1)
+└── join:          ffmpeg mux -> final.mp4
+```
+
+### Prerequisites (local, Apple Silicon)
+
+```bash
+brew install ffmpeg
+pip3 install faster-whisper edge-tts
+scripts/download_whisper_model.sh small   # whisper 模型走 ModelScope（huggingface.co 国内不可达）
+# FaceFusion: see https://docs.facefusion.io — needs its own venv + onnxruntime
+```
+
+- `KIMI_API_KEY` (optional): enables script rewriting via Kimi. Without it the original transcript is voiced as-is.
+- `KIMI_BASE_URL` / `KIMI_MODEL` (optional): default `https://api.moonshot.cn/v1` / `kimi-k2.6`.
+- `WHISPER_MODEL` (optional): default `small`; `WHISPER_CACHE_DIR` (default `~/.cache/faster-whisper`).
+
+### Run
+
+```bash
+go run ./cmd/video          # or: go build -o bin/video ./cmd/video
+# env: BIND (default 127.0.0.1), PORT (default 8090), VIDEO_TMP_DIR (default ./video-tmp)
+```
+
+### API
+
+| Endpoint | Description |
+|---|---|
+| `POST /jobs` | multipart: `video` (file), `face` (file, required when `faceswap=1`), fields: `faceswap`, `revoice`, `voice`, `instruction`, `burn_subtitles` → `{job_id}` |
+| `GET /jobs/:id` | poll job stage: `extracting → transcribing → rewriting → voicing → swapping → muxing → done` |
+| `GET /jobs/:id/download` | download `final.mp4` when done |
+| `GET /voices` | list available edge-tts voices |
+
+Example:
+
+```bash
+curl -F "video=@in.mp4" -F "face=@me.png" -F "faceswap=1" -F "revoice=1" \
+     -F "voice=zh-CN-YunxiNeural" http://127.0.0.1:8090/jobs
+curl http://127.0.0.1:8090/jobs/<job_id>
+```
+
+Job artifacts live in `./video-tmp/<job_id>/` and are cleaned up after 1 hour.

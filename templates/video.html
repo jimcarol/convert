@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI 视频处理</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: "Segoe UI", sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: #f8f9fa;
+      color: #333;
+    }
+    header {
+      display: flex;
+      align-items: center;
+      padding: 1rem;
+      background-color: #007bff;
+      color: white;
+    }
+    header h1 {
+      flex: 1;
+      text-align: center;
+      font-size: 1.2rem;
+      margin: 0;
+    }
+    header span { width: 3rem; }
+    main {
+      padding: 1rem;
+      max-width: 600px;
+      margin: auto;
+    }
+    .field { margin-top: 0.75rem; }
+    .field label {
+      display: block;
+      font-size: 0.9rem;
+      color: #555;
+      margin-bottom: 0.25rem;
+    }
+    input[type="file"] {
+      width: 100%;
+      padding: 0.6rem;
+      border: 1px dashed #bbb;
+      border-radius: 6px;
+      background: white;
+      font-size: 0.9rem;
+    }
+    select, textarea {
+      width: 100%;
+      padding: 0.6rem;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      font-size: 1rem;
+      background: white;
+    }
+    textarea { resize: vertical; }
+    .checkbox-row {
+      display: flex;
+      gap: 1.5rem;
+      margin-top: 0.75rem;
+      font-size: 0.95rem;
+    }
+    .checkbox-row label {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      cursor: pointer;
+    }
+    .hidden { display: none; }
+    button {
+      width: 100%;
+      margin-top: 0.75rem;
+      padding: 0.75rem;
+      background-color: #28a745;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-size: 1rem;
+      cursor: pointer;
+    }
+    button:hover { background-color: #218838; }
+    button:disabled { background-color: #6c757d; cursor: not-allowed; }
+    #progress { margin-top: 1rem; }
+    .stage-list {
+      list-style: none;
+      padding: 0;
+      margin: 0.5rem 0 0;
+      font-size: 0.9rem;
+    }
+    .stage-list li { padding: 0.2rem 0; color: #999; }
+    .stage-list li.active { color: #007bff; font-weight: bold; }
+    .stage-list li.done { color: #28a745; }
+    #result { margin-top: 1rem; }
+    #result video { width: 100%; margin-top: 0.5rem; border-radius: 6px; }
+    #result a {
+      display: inline-block;
+      margin-top: 0.5rem;
+      color: #007bff;
+    }
+    .error { color: #dc3545; }
+    .hint { font-size: 0.8rem; color: #999; margin-top: 0.25rem; }
+  </style>
+</head>
+<body>
+  <header>
+    <span></span>
+    <h1>AI 视频处理（换脸 / 换配音）</h1>
+    <span></span>
+  </header>
+  <main>
+    <form id="videoForm">
+      <div class="field">
+        <label>原始视频（mp4 / mov / webm / mkv，≤500MB）</label>
+        <input type="file" id="video" accept="video/*" required />
+      </div>
+
+      <div class="checkbox-row">
+        <label><input type="checkbox" id="faceswap" /> AI 换脸</label>
+        <label><input type="checkbox" id="revoice" checked /> 换配音</label>
+      </div>
+
+      <div class="field hidden" id="faceField">
+        <label>目标人脸照片（png / jpg，正脸清晰照效果最好）</label>
+        <input type="file" id="face" accept="image/*" />
+        <div class="hint">⚠️ 请只使用本人或已获授权的人脸</div>
+      </div>
+
+      <div class="field" id="voiceField">
+        <label>配音声音</label>
+        <select id="voice"><option value="">加载声音列表中...</option></select>
+      </div>
+
+      <div class="field" id="languageField">
+        <label>原视频语言（识别提示，选错会导致乱码）</label>
+        <select id="language">
+          <option value="">自动检测</option>
+          <option value="zh">中文</option>
+          <option value="en">英文</option>
+          <option value="ja">日文</option>
+          <option value="ko">韩文</option>
+        </select>
+      </div>
+
+      <div class="field" id="instructionField">
+        <label>改写要求（可选，需配置 KIMI_API_KEY；留空则直接朗读原文）</label>
+        <textarea id="instruction" rows="2" placeholder="例如：翻译成英文 / 改写成活泼的口播风格"></textarea>
+      </div>
+
+      <div class="checkbox-row" id="subtitleRow">
+        <label><input type="checkbox" id="burnSubtitles" /> 烧录字幕</label>
+      </div>
+
+      <button type="submit" id="submitButton">开始处理</button>
+    </form>
+
+    <div id="progress"></div>
+    <div id="result"></div>
+  </main>
+
+  <script>
+    const STAGE_LABELS = {
+      extracting: "抽取音频",
+      transcribing: "语音识别（whisper）",
+      rewriting: "文案改写（Kimi）",
+      voicing: "生成配音（edge-tts）",
+      swapping: "AI 换脸（最耗时，几分钟）",
+      muxing: "合成视频",
+      done: "完成",
+    };
+
+    const faceswapBox = document.getElementById("faceswap");
+    const revoiceBox = document.getElementById("revoice");
+    const faceField = document.getElementById("faceField");
+    const voiceField = document.getElementById("voiceField");
+    const languageField = document.getElementById("languageField");
+    const instructionField = document.getElementById("instructionField");
+    const subtitleRow = document.getElementById("subtitleRow");
+    const voiceSelect = document.getElementById("voice");
+    const form = document.getElementById("videoForm");
+    const progress = document.getElementById("progress");
+    const result = document.getElementById("result");
+    const submitButton = document.getElementById("submitButton");
+
+    function syncVisibility() {
+      faceField.classList.toggle("hidden", !faceswapBox.checked);
+      const showVoice = revoiceBox.checked;
+      voiceField.classList.toggle("hidden", !showVoice);
+      languageField.classList.toggle("hidden", !showVoice);
+      instructionField.classList.toggle("hidden", !showVoice);
+      subtitleRow.classList.toggle("hidden", !showVoice);
+    }
+    faceswapBox.addEventListener("change", syncVisibility);
+    revoiceBox.addEventListener("change", syncVisibility);
+    syncVisibility();
+
+    // 加载声音列表
+    fetch("/voices").then((res) => res.json()).then((data) => {
+      voiceSelect.innerHTML = data.voices
+        .map((v) => `<option value="${v.id}">${v.label}</option>`)
+        .join("");
+    }).catch(() => {
+      voiceSelect.innerHTML = '<option value="">声音列表加载失败</option>';
+    });
+
+    function renderStages(job, doneStages) {
+      const items = job.stages
+        .filter((s) => s !== "pending")
+        .map((s) => {
+          let cls = "";
+          if (s === job.stage) cls = "active";
+          else if (doneStages.has(s)) cls = "done";
+          return `<li class="${cls}">${cls === "done" ? "✓ " : ""}${STAGE_LABELS[s] || s}</li>`;
+        })
+        .join("");
+      progress.innerHTML = `<p>任务 ${job.id} 处理中...</p><ul class="stage-list">${items}</ul>`;
+    }
+
+    async function pollJob(jobId, useStages) {
+      const seen = new Set();
+      const order = ["extracting", "transcribing", "rewriting", "voicing", "swapping", "muxing"];
+      while (true) {
+        await new Promise((r) => setTimeout(r, 2000));
+        const res = await fetch("/jobs/" + jobId);
+        const job = await res.json();
+        if (!res.ok) {
+          progress.innerHTML = `<p class="error">${job.error || "查询失败"}</p>`;
+          return;
+        }
+        // 标记已走过的阶段（只需要本次任务实际用到的）
+        for (const s of order) {
+          if (s === job.stage) break;
+          if (useStages.includes(s)) seen.add(s);
+        }
+        if (job.stage === "done") {
+          seen.add("muxing");
+          renderStages({ ...job, stages: useStages.concat("done"), stage: "done" }, seen);
+          progress.querySelector("p").textContent = "处理完成！";
+          result.innerHTML = `
+            <video controls src="${job.download_url}"></video>
+            <br/>
+            <a href="${job.download_url}">下载 MP4</a>
+          `;
+          return;
+        }
+        if (job.stage === "failed") {
+          progress.innerHTML = `<p class="error">处理失败：${job.error || "未知错误"}</p>`;
+          return;
+        }
+        renderStages({ ...job, stages: useStages }, seen);
+      }
+    }
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const videoFile = document.getElementById("video").files[0];
+      const faceFile = document.getElementById("face").files[0];
+      if (!videoFile) return;
+      if (!faceswapBox.checked && !revoiceBox.checked) {
+        result.innerHTML = '<p class="error">请至少勾选「AI 换脸」或「换配音」之一。</p>';
+        return;
+      }
+      if (faceswapBox.checked && !faceFile) {
+        result.innerHTML = '<p class="error">换脸需要上传目标人脸照片。</p>';
+        return;
+      }
+
+      const fd = new FormData();
+      fd.append("video", videoFile);
+      if (faceswapBox.checked) {
+        fd.append("faceswap", "1");
+        fd.append("face", faceFile);
+      }
+      if (revoiceBox.checked) {
+        fd.append("revoice", "1");
+        fd.append("voice", voiceSelect.value);
+        fd.append("language", document.getElementById("language").value);
+        fd.append("instruction", document.getElementById("instruction").value);
+        if (document.getElementById("burnSubtitles").checked) {
+          fd.append("burn_subtitles", "1");
+        }
+      }
+
+      submitButton.disabled = true;
+      submitButton.textContent = "上传处理中...";
+      progress.innerHTML = "";
+      result.innerHTML = "";
+
+      try {
+        const res = await fetch("/jobs", { method: "POST", body: fd });
+        const data = await res.json();
+        if (!res.ok) {
+          result.innerHTML = `<p class="error">${data.error || "提交失败"}</p>`;
+          return;
+        }
+        // 只展示本次任务会经过的阶段
+        const useStages = [];
+        if (revoiceBox.checked) useStages.push("extracting", "transcribing", "rewriting", "voicing");
+        if (faceswapBox.checked) useStages.push("swapping");
+        useStages.push("muxing");
+        await pollJob(data.job_id, useStages);
+      } catch {
+        result.innerHTML = '<p class="error">网络错误，请重试。</p>';
+      } finally {
+        submitButton.disabled = false;
+        submitButton.textContent = "开始处理";
+      }
+    });
+  </script>
+</body>
+</html>

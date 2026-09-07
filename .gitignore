@@ -5,3 +5,4 @@ passwords.json
 static/passwordx/
 notes.json
 idea/
+__pycache__/
