@@ -100,6 +100,37 @@
       color: #007bff;
     }
     .error { color: #dc3545; }
+    .mode-tabs {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 0.75rem;
+    }
+    .mode-tabs button {
+      margin-top: 0;
+      background: #e9ecef;
+      color: #333;
+    }
+    .mode-tabs button.active {
+      background: #007bff;
+      color: white;
+    }
+    .record-row {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-top: 0.75rem;
+    }
+    .record-row button {
+      margin-top: 0;
+      width: auto;
+      padding: 0.6rem 1.2rem;
+    }
+    #recordBtn { background-color: #dc3545; }
+    #recordBtn:hover { background-color: #c82333; }
+    #recordBtn.recording { background-color: #6c757d; }
+    #recordStatus { font-size: 0.9rem; color: #555; font-variant-numeric: tabular-nums; }
+    .hidden { display: none; }
+    .hint { font-size: 0.8rem; color: #999; margin-top: 0.25rem; }
   </style>
 </head>
 <body>
@@ -109,8 +140,28 @@
   </header>
   <main>
     <form id="ttsForm">
-      <textarea id="text" rows="6" placeholder="输入要转换的文字（最多 3000 字）"></textarea>
+      <div class="mode-tabs">
+        <button type="button" id="tabText" class="active">⌨ 文字输入</button>
+        <button type="button" id="tabMic">🎙 语音输入</button>
+      </div>
+
+      <div id="micMode" class="hidden">
+        <div class="record-row">
+          <button type="button" id="recordBtn">开始说话</button>
+          <span id="recordStatus">点击后对着麦克风说话</span>
+        </div>
+        <select id="language">
+          <option value="zh-CN">识别语言：中文</option>
+          <option value="en-US">English</option>
+          <option value="ja-JP">日本語</option>
+          <option value="ko-KR">한국어</option>
+        </select>
+        <div class="hint">识别结果实时填入下方文本框，可手动修正后再生成语音</div>
+      </div>
+
+      <textarea id="text" rows="6" placeholder="输入要转换的文字，或切换到「语音输入」直接说话（最多 3000 字）"></textarea>
       <div class="char-count"><span id="charCount">0</span>/3000</div>
+
       <select id="voice"><option value="">加载声音列表中...</option></select>
       <div class="slider-row">
         <label for="pitch">音调</label>
@@ -139,9 +190,88 @@
     const result = document.getElementById("result");
     const submitButton = document.getElementById("submitButton");
 
-    textInput.addEventListener("input", () => {
-      charCount.textContent = Array.from(textInput.value).length;
+    const tabText = document.getElementById("tabText");
+    const tabMic = document.getElementById("tabMic");
+    const micMode = document.getElementById("micMode");
+    const recordBtn = document.getElementById("recordBtn");
+    const recordStatus = document.getElementById("recordStatus");
+    const langSelect = document.getElementById("language");
+
+    // 浏览器端语音识别（Web Speech API），识别结果直接进文本框；
+    // 服务端保持纯 edge-tts，零新增后端依赖
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    let recog = null;
+    let recognizing = false;
+
+    tabText.addEventListener("click", () => {
+      tabText.classList.add("active");
+      tabMic.classList.remove("active");
+      micMode.classList.add("hidden");
+      if (recog && recognizing) recog.stop();
     });
+    tabMic.addEventListener("click", () => {
+      tabMic.classList.add("active");
+      tabText.classList.remove("active");
+      micMode.classList.remove("hidden");
+      if (!SpeechRecognition) {
+        recordStatus.textContent = "当前浏览器不支持语音识别，请用 Chrome / Edge / Safari";
+        recordBtn.disabled = true;
+      }
+    });
+
+    recordBtn.addEventListener("click", () => {
+      if (!SpeechRecognition) return;
+
+      if (recognizing) {
+        recog.stop();
+        return;
+      }
+
+      recog = new SpeechRecognition();
+      recog.lang = langSelect.value;
+      recog.continuous = true;
+      recog.interimResults = true;
+
+      // 以开始识别时文本框已有内容为前缀，识别结果追加在后面
+      const prefix = textInput.value;
+      let finalText = "";
+
+      recog.onresult = (e) => {
+        let interim = "";
+        for (let i = e.resultIndex; i < e.results.length; i++) {
+          if (e.results[i].isFinal) finalText += e.results[i][0].transcript;
+          else interim += e.results[i][0].transcript;
+        }
+        textInput.value = prefix + finalText + interim;
+        syncCharCount();
+      };
+      recog.onerror = (e) => {
+        const msgs = {
+          "not-allowed": "麦克风权限被拒绝，请在浏览器地址栏允许",
+          "network": "识别服务网络不可用（Chrome 走 Google 服务器，国内可能不通，可换 Edge/Safari）",
+          "no-speech": "没有听到声音，请靠近麦克风重试",
+          "service-not-allowed": "识别服务不可用",
+        };
+        recordStatus.textContent = msgs[e.error] || "识别出错：" + e.error;
+      };
+      recog.onend = () => {
+        recognizing = false;
+        recordBtn.classList.remove("recording");
+        recordBtn.textContent = "开始说话";
+        if (finalText) recordStatus.textContent = "识别完成，可修正文字后点「生成语音」";
+      };
+
+      recog.start();
+      recognizing = true;
+      recordBtn.classList.add("recording");
+      recordBtn.textContent = "停止";
+      recordStatus.textContent = "聆听中...";
+    });
+
+    function syncCharCount() {
+      charCount.textContent = Array.from(textInput.value).length;
+    }
+    textInput.addEventListener("input", syncCharCount);
 
     const fmtSigned = (v, unit) => (v > 0 ? "+" : "") + v + unit;
     pitchInput.addEventListener("input", () => {
