@@ -1,0 +1,120 @@
+# 开发模式：源码直接挂载进容器，容器内用 air 监听文件变化自动重编译，
+# 改 Go 代码 / HTML 模板 / Python 脚本都不用重新 build 镜像。
+#
+# 首次使用（构建一次开发镜像，之后会被缓存）：
+#   docker compose -f docker-compose.dev.yml build
+# 日常开发：
+#   docker compose -f docker-compose.dev.yml up
+# 如需 video 服务一起跑：
+#   docker compose -f docker-compose.dev.yml --profile video up
+
+# 四个 Go 服务共用同一个镜像 file-converter-dev（由 lite 服务的 build 段构建；
+# 不要把 build 段复制到其他服务，并发构建同一镜像名会触发 buildkit
+# "image already exists" 冲突）
+
+services:
+  lite:
+    image: file-converter-dev
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: converter-dev-lite
+    environment:
+      AUTH_PASSWORD: ${AUTH_PASSWORD:-dev-password}
+      JWT_SECRET: ${JWT_SECRET:-dev-jwt-secret-change-me}
+      PORT: "8080"
+    volumes:
+      - .:/app
+      - gomodcache:/go/pkg/mod
+      - gobuildcache:/root/.cache/go-build
+    command:
+      - air
+      - --build.cmd=go build -o /tmp/bin/lite ./cmd/lite
+      - --build.bin=/tmp/bin/lite
+      - --build.exclude_dir=tmp,video-tmp,.git
+    ports:
+      - "8081:8080" # 直连调试入口；统一入口仍走 caddy :8080
+
+  heavy:
+    image: file-converter-dev
+    pull_policy: never
+    container_name: converter-dev-heavy
+    environment:
+      JWT_SECRET: ${JWT_SECRET:-dev-jwt-secret-change-me}
+      PORT: "8080"
+      # Debian 版 fonts-wqy-zenhei 的安装路径（与生产 alpine 不同）
+      FONT_PATH: /usr/share/fonts/truetype/wqy/wqy-zenhei.ttc
+    volumes:
+      - .:/app
+      - gomodcache:/go/pkg/mod
+      - gobuildcache:/root/.cache/go-build
+    command:
+      - air
+      - --build.cmd=go build -o /tmp/bin/heavy ./cmd/heavy
+      - --build.bin=/tmp/bin/heavy
+      - --build.exclude_dir=tmp,video-tmp,.git
+    ports:
+      - "8082:8080"
+
+  tts:
+    image: file-converter-dev
+    pull_policy: never
+    container_name: converter-dev-tts
+    environment:
+      JWT_SECRET: ${JWT_SECRET:-dev-jwt-secret-change-me}
+      PORT: "8080"
+    volumes:
+      - .:/app
+      - gomodcache:/go/pkg/mod
+      - gobuildcache:/root/.cache/go-build
+    command:
+      - air
+      - --build.cmd=go build -o /tmp/bin/tts ./cmd/tts
+      - --build.bin=/tmp/bin/tts
+      - --build.exclude_dir=tmp,video-tmp,.git
+    ports:
+      - "8083:8080"
+
+  # 本地视频服务（默认不启动，用 --profile video 开启）
+  video:
+    profiles: ["video"]
+    image: file-converter-dev
+    pull_policy: never
+    container_name: converter-dev-video
+    environment:
+      KIMI_API_KEY: ${KIMI_API_KEY:-}
+      PORT: "8090"
+      # 容器内必须监听 0.0.0.0，否则宿主机的端口映射访问不到
+      BIND: "0.0.0.0"
+      VIDEO_TMP_DIR: /app/video-tmp
+    volumes:
+      - .:/app
+      - gomodcache:/go/pkg/mod
+      - gobuildcache:/root/.cache/go-build
+      # 复用宿主机已下载的 whisper 模型，避免容器内再从 ModelScope 拉
+      - ~/.cache/faster-whisper:/root/.cache/faster-whisper:ro
+    command:
+      - air
+      - --build.cmd=go build -o /tmp/bin/video ./cmd/video
+      - --build.bin=/tmp/bin/video
+      - --build.exclude_dir=tmp,video-tmp,.git
+    ports:
+      - "8090:8090"
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: converter-dev-caddy
+    depends_on:
+      - lite
+      - heavy
+      - tts
+    ports:
+      - "8080:80"
+    volumes:
+      # 已挂载，改路由只需 restart caddy，不用 build
+      - ./Caddyfile.example:/etc/caddy/Caddyfile:ro
+
+volumes:
+  # Go module / 构建缓存做成命名卷：容器重建后重编译依然很快
+  gomodcache:
+  gobuildcache:

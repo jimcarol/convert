@@ -1,0 +1,16 @@
+# 开发专用镜像：Go 工具链 + air 热重载 + 各服务的运行时依赖（python/edge-tts、
+# ffmpeg、中文字体、faster-whisper）。
+# 镜像只构建一次并缓存；之后改代码由容器内的 air 自动重编译，无需 rebuild。
+FROM golang:1.24.2-bookworm
+
+# air v1.63+ 要求 Go >= 1.25，这里固定兼容 go1.24.2 的 v1.62.0
+RUN go install github.com/air-verse/air@v1.62.0 \
+ && apt-get update \
+ && apt-get install -y --no-install-recommends \
+      python3 python3-venv ffmpeg fonts-wqy-zenhei curl \
+ && rm -rf /var/lib/apt/lists/* \
+ && python3 -m venv /opt/venv \
+ && /opt/venv/bin/pip install --no-cache-dir edge-tts faster-whisper
+
+ENV PATH="/opt/venv/bin:$PATH"
+WORKDIR /app
