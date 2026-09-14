@@ -62,6 +62,29 @@ docker compose -f docker-compose.dev.yml --profile video up
 - **video 服务**：容器内强制 `BIND=0.0.0.0`（默认 127.0.0.1 会导致宿主机端口映射访问不到）；
   并挂载宿主机 `~/.cache/faster-whisper`（只读）复用已下载的 whisper 模型，不用重新从 ModelScope 拉。
 
+## 生产镜像构建（heavy 的 base image）
+
+`Dockerfile.heavy` 的运行时依赖（LibreOffice + JRE + 中文字体，数百 MB）拆到了
+**`Dockerfile.heavy-base`**，只构建一次、打好 tag `converter-heavy-base:v1`；
+日常构建 heavy 只剩 Go 编译（有 BuildKit 缓存挂载，增量编译）+ 拷贝二进制。
+
+```bash
+# 日常构建 heavy(base 缺失时会自动先构建 base)
+bash scripts/build-heavy.sh
+
+# 手动构建/重建 base(仅当 LibreOffice 等依赖需要变更时)
+docker compose --profile base build heavy-base
+```
+
+- base 依赖变更时:bump tag(`v1` → `v2`),同步改 `Dockerfile.heavy` 的 `FROM`
+  和 `docker-compose.yml` 里 `heavy-base` 服务的 `image`。
+- **架构固定 amd64**:服务器是 amd64,compose 里 `heavy`/`heavy-base` 都钉了
+  `platform: linux/amd64`,本地(ARM)构建、运行都走模拟——慢一点,但保证
+  `converter-heavy-base:v1` 这个 tag 本地永远只有一份 amd64,不会和原生 arm64
+  构建互相覆盖。追求原生速度的日常开发请用 `docker-compose.dev.yml`。
+- 服务器部署:先在那台机器上建一次 base(同上命令),或把 base 推到私有 registry 后
+  修改 `Dockerfile.heavy` 的 `FROM` 指向 registry 地址。
+
 ## 本地裸跑（不用 Docker）
 
 各服务需在 **repo 根目录** 启动（模板、脚本是相对路径）：

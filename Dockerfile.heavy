@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1
 FROM golang:1.24.2-alpine AS builder
 
 RUN apk add --no-cache gcc g++ libc-dev libwebp-dev
@@ -5,13 +6,16 @@ RUN apk add --no-cache gcc g++ libc-dev libwebp-dev
 ENV CGO_ENABLED=1
 WORKDIR /app
 COPY go.mod go.sum ./
-RUN go mod download
+RUN --mount=type=cache,target=/go/pkg/mod go mod download
 
 COPY . .
-RUN go build -o /out/heavy ./cmd/heavy
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
+    go build -o /out/heavy ./cmd/heavy
 
-FROM alpine:latest
-RUN apk --no-cache add ca-certificates libreoffice openjdk11-jre font-noto-cjk font-wqy-zenhei
+# 运行时依赖(LibreOffice/JRE/字体)在 base 镜像中预先装好,见 Dockerfile.heavy-base;
+# base 缺失时先构建:docker compose --profile base build heavy-base
+FROM converter-heavy-base:v1
 
 ARG VERSION="dev"
 ARG GIT_COMMIT="unknown"

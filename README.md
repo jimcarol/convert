@@ -201,6 +201,23 @@ docker push jimhsx/convert:${tag_name}-amd64
 ## Docker (Split lite/heavy)
 
 ### Build
+
+The heavy image's runtime deps (LibreOffice + JRE + CJK fonts) live in a separate
+base image (`Dockerfile.heavy-base`, tagged `converter-heavy-base:v1`). Build it
+**once** per machine — rebuild only when those deps change:
+
+```shell
+docker buildx build --platform linux/amd64 -f Dockerfile.heavy-base \
+  -t converter-heavy-base:v1 --load .
+```
+
+`Dockerfile.heavy` does `FROM converter-heavy-base:v1`, so the heavy build below
+fails if the base image is missing locally. To bump base deps: tag a new version
+(`v2`) and update the `FROM` in `Dockerfile.heavy` plus the `heavy-base` service
+image in `docker-compose.yml`. (Pushing the base to a registry is unnecessary in the
+usual build-here / pull-on-server flow — only useful if you ever build heavy on a
+second machine.)
+
 Each build stamps the image with labels (version, git commit, build date, feature list)
 via build args, so you can later inspect what a given image contains:
 
@@ -277,11 +294,19 @@ INVITE_CODES='alice=code-a1b2c3,bob=code-x9y8z7'
 - **Data isolation**: each user's notes/passwords live in separate files — `data/notes-<user>.json`, `data/passwords-<user>.json` (directory configurable via `DATA_DIR`). Users can only see their own data.
 - **Migration**: on first startup, legacy `notes.json` / `passwords.json` in the working directory are renamed to the first invited user's files (or `admin` when only `AUTH_PASSWORD` is set).
 - **Revocation**: remove a user from `INVITE_CODES` and restart — their existing cookies immediately return 401 on `lite` routes. Note: `heavy`/`tts` only verify the JWT signature (they hold no user data), so a revoked user's token stays usable there until it expires (7 days).
+- **Login-gated pages**: `/file-convert`, `/png-to-pdf` and `/gif-generate` require a valid login — unauthenticated (or revoked) visits get a 302 redirect to `/`, where the login dialog lives. `/online-note` and `/password-x` stay public because they have their own built-in login UI.
 
 ### Local Development with docker-compose
 Start split services locally:
 
 ```shell
+# first time only: heavy's base image (LibreOffice etc., large download, one-time)
+docker compose --profile base build heavy-base
+# `docker compose up --build` builds the heavy service, which requires this base.
+# Note: heavy + heavy-base are pinned to `platform: linux/amd64` (matches the server);
+# on Apple Silicon they build/run emulated — slower, but only one base arch ever exists.
+# Use docker-compose.dev.yml for fast native daily development instead.
+
 AUTH_PASSWORD='your-password' JWT_SECRET='your-jwt-secret' docker compose up --build
 # or with invite codes:
 INVITE_CODES='alice=code-a1b2c3,bob=code-x9y8z7' JWT_SECRET='your-jwt-secret' docker compose up --build

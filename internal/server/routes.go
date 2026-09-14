@@ -3,6 +3,7 @@ package server
 import (
 	"file-converter/handlers"
 	"file-converter/internal/auth"
+	"file-converter/middleware"
 	"net/http"
 
 	"github.com/gin-contrib/cors"
@@ -23,15 +24,6 @@ func RegisterPublicWebRoutes(r *gin.Engine) {
 	r.GET("/", func(c *gin.Context) {
 		c.HTML(http.StatusOK, "index.html", nil)
 	})
-	r.GET("/file-convert", func(c *gin.Context) {
-		c.HTML(http.StatusOK, "file-convert.html", nil)
-	})
-	r.GET("/png-to-pdf", func(c *gin.Context) {
-		c.HTML(http.StatusOK, "png2pdf.html", nil)
-	})
-	r.GET("/gif-generate", func(c *gin.Context) {
-		c.HTML(http.StatusOK, "gif-generator.html", nil)
-	})
 	r.GET("/online-note", func(c *gin.Context) {
 		c.HTML(http.StatusOK, "notes.html", nil)
 	})
@@ -43,6 +35,22 @@ func RegisterPublicWebRoutes(r *gin.Engine) {
 	})
 	r.GET("/vault", func(c *gin.Context) {
 		c.Redirect(http.StatusFound, "/password-x")
+	})
+}
+
+// RegisterProtectedWebRoutes 注册需要登录才能访问的 HTML 页面；
+// 未登录访问会被 PageAuthRequired 重定向到首页登录入口。
+func RegisterProtectedWebRoutes(r *gin.Engine, reg *auth.Registry, allowAdmin bool, jwtSecret string) {
+	pages := r.Group("/")
+	pages.Use(middleware.PageAuthRequired(jwtSecret, reg, allowAdmin))
+	pages.GET("/file-convert", func(c *gin.Context) {
+		c.HTML(http.StatusOK, "file-convert.html", nil)
+	})
+	pages.GET("/png-to-pdf", func(c *gin.Context) {
+		c.HTML(http.StatusOK, "png2pdf.html", nil)
+	})
+	pages.GET("/gif-generate", func(c *gin.Context) {
+		c.HTML(http.StatusOK, "gif-generator.html", nil)
 	})
 }
 

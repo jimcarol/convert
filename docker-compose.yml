@@ -13,7 +13,21 @@ services:
       - ./data:/root/data
     restart: unless-stopped
 
+  # heavy 的运行时 base 镜像(LibreOffice 等大依赖),只在依赖变更时构建:
+  #   docker compose --profile base build heavy-base
+  # 日常构建 heavy 用 scripts/build-heavy.sh(缺 base 时会自动先建)
+  # platform 固定 amd64:服务器是 amd64,本地(ARM)也统一用这个架构,
+  # 避免同一 tag 下 arm64/amd64 两个版本的 base 互相覆盖。
+  heavy-base:
+    image: converter-heavy-base:v1
+    platform: linux/amd64
+    build:
+      context: .
+      dockerfile: Dockerfile.heavy-base
+    profiles: ["base"]
+
   heavy:
+    platform: linux/amd64
     build:
       context: .
       dockerfile: Dockerfile.heavy

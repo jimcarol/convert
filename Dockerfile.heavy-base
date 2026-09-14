@@ -1,0 +1,6 @@
+# heavy 服务的运行时 base 镜像:LibreOffice + JRE + 中文字体(体积大、变化少)。
+# 只在依赖变更时重建并 bump tag(v1 → v2),同时更新 Dockerfile.heavy 的 FROM
+# 和 docker-compose.yml 中 heavy-base 服务的 image。
+# 构建:docker compose --profile base build heavy-base
+FROM alpine:3.21
+RUN apk --no-cache add ca-certificates libreoffice openjdk11-jre font-noto-cjk font-wqy-zenhei

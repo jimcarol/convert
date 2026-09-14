@@ -41,6 +41,7 @@ func main() {
 
 	r := server.NewRouter()
 	server.RegisterPublicWebRoutes(r)
+	server.RegisterProtectedWebRoutes(r, inviteReg, authPassword != "", jwtSecret)
 	server.RegisterAuthRoutes(r, inviteReg, authPassword, jwtSecret)
 	registerProtectedRoutes(r, inviteReg, authPassword != "", jwtSecret)
 

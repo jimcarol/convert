@@ -12,7 +12,27 @@ import (
 )
 
 func main() {
-	jwtSecret := os.Getenv("JWT_SECRET")
+	jwtSecret, inviteReg, authPassword := initAuth()
+
+	r := server.NewRouter()
+	server.RegisterPublicWebRoutes(r)
+	server.RegisterProtectedWebRoutes(r, inviteReg, authPassword != "", jwtSecret)
+	server.RegisterAuthRoutes(r, inviteReg, authPassword, jwtSecret)
+	registerProtectedRoutes(r, inviteReg, authPassword != "", jwtSecret)
+
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
+	if err := r.Run(":" + port); err != nil {
+		log.Fatal(err)
+	}
+}
+
+// initAuth 读取并校验鉴权相关的环境变量，并初始化 per-user 数据存储。
+// 返回 JWT 密钥、邀请码注册表和 admin 兜底密码。
+func initAuth() (jwtSecret string, inviteReg *auth.Registry, authPassword string) {
+	jwtSecret = os.Getenv("JWT_SECRET")
 	if jwtSecret == "" {
 		log.Fatal("JWT_SECRET environment variable must be set")
 	}
@@ -23,7 +43,7 @@ func main() {
 	if err != nil {
 		log.Fatal("invalid INVITE_CODES: ", err)
 	}
-	authPassword := os.Getenv("AUTH_PASSWORD")
+	authPassword = os.Getenv("AUTH_PASSWORD")
 	if inviteReg.Empty() && authPassword == "" {
 		log.Fatal("set INVITE_CODES and/or AUTH_PASSWORD")
 	}
@@ -39,18 +59,7 @@ func main() {
 	}
 	handlers.InitUserStores(os.Getenv("DATA_DIR"), defaultOwner)
 
-	r := server.NewRouter()
-	server.RegisterPublicWebRoutes(r)
-	server.RegisterAuthRoutes(r, inviteReg, authPassword, jwtSecret)
-	registerProtectedRoutes(r, inviteReg, authPassword != "", jwtSecret)
-
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "8080"
-	}
-	if err := r.Run(":" + port); err != nil {
-		log.Fatal(err)
-	}
+	return jwtSecret, inviteReg, authPassword
 }
 
 func registerProtectedRoutes(r *gin.Engine, reg *auth.Registry, allowAdmin bool, jwtSecret string) {
