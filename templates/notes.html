@@ -48,7 +48,7 @@
         <a href="/" class="home-link" aria-label="Back to home page">Home</a>
         <button id="login-btn" class="btn-auth" type="button">Login</button>
         <span class="logged-in-area" id="logged-in-area">
-          <span class="sync-badge">Synced</span>
+          <span class="sync-badge" id="current-user">Synced</span>
           <button id="logout-btn" class="btn-danger" type="button">Logout</button>
         </span>
       </div>
@@ -56,12 +56,12 @@
 
     <div class="login-dialog" id="login-dialog">
       <div class="login-row">
-        <input type="password" id="login-password" class="login-password" placeholder="Enter password" />
+        <input type="password" id="login-password" class="login-password" placeholder="输入邀请码" />
         <div class="login-actions">
           <button id="login-confirm" class="btn-primary" type="button">OK</button>
           <button id="login-cancel" class="btn-secondary" type="button">Cancel</button>
         </div>
-        <span id="login-error" class="login-error">Wrong password</span>
+        <span id="login-error" class="login-error">邀请码无效</span>
       </div>
     </div>
 

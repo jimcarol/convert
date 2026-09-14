@@ -9,6 +9,8 @@ import (
 	"sync"
 	"time"
 
+	"file-converter/middleware"
+
 	"github.com/gin-gonic/gin"
 )
 
@@ -22,15 +24,35 @@ type Note struct {
     UpdatedAt time.Time `json:"updated_at"`
 }
 
-// File to store notes
-const notesFile = "notes.json"
+// 每个用户一个 store：自带锁 + map + nextID + 独立文件（data/notes-<user>.json），
+// 多用户并发天然分片。store 懒加载，首次访问时从磁盘读取。
+type noteStore struct {
+	mu     sync.Mutex
+	notes  map[int]Note
+	nextID int
+	file   string
+	loaded bool
+}
 
-// In-memory cache + lock
 var (
-    notes   = make(map[int]Note)
-    nextID  = 1
-    notesMu sync.Mutex
+	noteStores   = make(map[string]*noteStore)
+	noteStoresMu sync.Mutex
 )
+
+func noteStoreFor(username string) *noteStore {
+	noteStoresMu.Lock()
+	defer noteStoresMu.Unlock()
+	s, ok := noteStores[username]
+	if !ok {
+		s = &noteStore{
+			notes:  make(map[int]Note),
+			nextID: 1,
+			file:   userDataFile("notes", username),
+		}
+		noteStores[username] = s
+	}
+	return s
+}
 
 func normalizeTags(tags []string) []string {
     if len(tags) == 0 {
@@ -57,47 +79,54 @@ func normalizeTags(tags []string) []string {
     return normalized
 }
 
-// Load notes from file
-func LoadNotes() {
-    if _, err := os.Stat(notesFile); os.IsNotExist(err) {
-        return
-    }
-    data, err := os.ReadFile(notesFile)
-    if err != nil {
-        log.Println("Failed to read notes file:", err)
-        return
-    }
-    var ns []Note
-    if err := json.Unmarshal(data, &ns); err != nil {
-        log.Println("Failed to parse notes file:", err)
-        return
-    }
-    for _, n := range ns {
-        n.Tags = normalizeTags(n.Tags)
-        notes[n.ID] = n
-        if n.ID >= nextID {
-            nextID = n.ID + 1
-        }
-    }
+// loadLocked 首次访问时从磁盘加载，调用方须持有 s.mu。
+func (s *noteStore) loadLocked() {
+	if s.loaded {
+		return
+	}
+	s.loaded = true
+	data, err := os.ReadFile(s.file)
+	if err != nil {
+		if !os.IsNotExist(err) {
+			log.Println("Failed to read notes file:", err)
+		}
+		return
+	}
+	var ns []Note
+	if err := json.Unmarshal(data, &ns); err != nil {
+		log.Println("Failed to parse notes file:", err)
+		return
+	}
+	for _, n := range ns {
+		n.Tags = normalizeTags(n.Tags)
+		s.notes[n.ID] = n
+		if n.ID >= s.nextID {
+			s.nextID = n.ID + 1
+		}
+	}
 }
 
-// Save notes to file
-func saveNotes() {
-    ns := make([]Note, 0, len(notes))
-    for _, n := range notes {
-        ns = append(ns, n)
-    }
-    data, _ := json.MarshalIndent(ns, "", "  ")
-    _ = os.WriteFile(notesFile, data, 0644)
+// saveLocked 整文件重写，调用方须持有 s.mu。
+func (s *noteStore) saveLocked() {
+	ns := make([]Note, 0, len(s.notes))
+	for _, n := range s.notes {
+		ns = append(ns, n)
+	}
+	data, _ := json.MarshalIndent(ns, "", "  ")
+	if err := os.WriteFile(s.file, data, 0644); err != nil {
+		log.Println("Failed to save notes file:", err)
+	}
 }
 
 // Handlers
 
 func GetNotes(c *gin.Context) {
-	notesMu.Lock()
-	defer notesMu.Unlock()
-	ns := make([]Note, 0, len(notes))
-	for _, n := range notes {
+	s := noteStoreFor(middleware.Username(c))
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.loadLocked()
+	ns := make([]Note, 0, len(s.notes))
+	for _, n := range s.notes {
 			ns = append(ns, n)
 	}
 	c.JSON(http.StatusOK, ns)
@@ -110,16 +139,18 @@ func CreateNote(c *gin.Context) {
 			return
 	}
 
-	notesMu.Lock()
-	note.ID = nextID
-	nextID++
+	s := noteStoreFor(middleware.Username(c))
+	s.mu.Lock()
+	s.loadLocked()
+	note.ID = s.nextID
+	s.nextID++
 	note.Tags = normalizeTags(note.Tags)
 	now := time.Now()
 	note.CreatedAt = now
 	note.UpdatedAt = now
-	notes[note.ID] = note
-	saveNotes()
-	notesMu.Unlock()
+	s.notes[note.ID] = note
+	s.saveLocked()
+	s.mu.Unlock()
 
 	c.JSON(http.StatusCreated, note)
 }
@@ -134,10 +165,12 @@ func UpdateNote(c *gin.Context) {
 			return
 	}
 
-	notesMu.Lock()
-	existing, ok := notes[id]
+	s := noteStoreFor(middleware.Username(c))
+	s.mu.Lock()
+	s.loadLocked()
+	existing, ok := s.notes[id]
 	if !ok {
-			notesMu.Unlock()
+			s.mu.Unlock()
 			c.JSON(http.StatusNotFound, gin.H{"error": "Note not found"})
 			return
 	}
@@ -147,9 +180,9 @@ func UpdateNote(c *gin.Context) {
 	existing.Tags = normalizeTags(note.Tags)
 	existing.Urgent = note.Urgent
 	existing.UpdatedAt = time.Now()
-	notes[id] = existing
-	saveNotes()
-	notesMu.Unlock()
+	s.notes[id] = existing
+	s.saveLocked()
+	s.mu.Unlock()
 
 	c.JSON(http.StatusOK, existing)
 }
@@ -158,13 +191,15 @@ func DeleteNote(c *gin.Context) {
   idStr := c.Param("id")
 	id, _ := strconv.Atoi(idStr)
 
-	notesMu.Lock()
-	_, ok := notes[id]
+	s := noteStoreFor(middleware.Username(c))
+	s.mu.Lock()
+	s.loadLocked()
+	_, ok := s.notes[id]
 	if ok {
-			delete(notes, id)
-			saveNotes()
+			delete(s.notes, id)
+			s.saveLocked()
 	}
-	notesMu.Unlock()
+	s.mu.Unlock()
 
 	if !ok {
 			c.JSON(http.StatusNotFound, gin.H{"error": "Note not found"})

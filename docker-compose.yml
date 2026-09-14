@@ -6,11 +6,11 @@ services:
     container_name: converter-lite
     environment:
       AUTH_PASSWORD: ${AUTH_PASSWORD:-dev-password}
+      INVITE_CODES: ${INVITE_CODES:-}
       JWT_SECRET: ${JWT_SECRET:-dev-jwt-secret-change-me}
       PORT: "8080"
     volumes:
-      - ./notes.json:/root/notes.json
-      - ./passwords.json:/root/passwords.json
+      - ./data:/root/data
     restart: unless-stopped
 
   heavy:

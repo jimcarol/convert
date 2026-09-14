@@ -55,14 +55,14 @@
   <div style="position:absolute;top:16px;right:24px;" id="auth-area">
     <button id="login-btn" onclick="showLoginDialog()" style="background:#2563eb;color:#fff;padding:8px 16px;border:none;border-radius:8px;cursor:pointer;font-size:0.9rem;">Login</button>
     <span id="logged-in-area" style="display:none;">
-      <span style="color:#16a34a;font-weight:500;">Logged in</span>
+      <span id="current-user" style="color:#16a34a;font-weight:500;"></span>
       <button onclick="doLogout()" style="background:#ef4444;color:#fff;padding:6px 12px;border:none;border-radius:8px;cursor:pointer;margin-left:8px;font-size:0.85rem;">Logout</button>
     </span>
   </div>
   <div id="login-dialog" style="display:none;position:absolute;top:56px;right:24px;padding:16px;border:1px solid #ccc;border-radius:8px;background:#f0f4ff;box-shadow:0 4px 12px rgba(0,0,0,0.1);z-index:10;">
-    <input type="password" id="login-password" placeholder="Password" style="padding:8px 12px;border:1px solid #bbb;border-radius:6px;font-size:1rem;width:180px;" />
+    <input type="password" id="login-password" placeholder="邀请码" style="padding:8px 12px;border:1px solid #bbb;border-radius:6px;font-size:1rem;width:180px;" />
     <button onclick="doLogin()" style="background:#16a34a;color:#fff;padding:8px 16px;border:none;border-radius:6px;cursor:pointer;margin-left:8px;">OK</button>
-    <span id="login-error" style="color:#ef4444;margin-left:8px;display:none;">Wrong password</span>
+    <span id="login-error" style="color:#ef4444;margin-left:8px;display:none;">邀请码无效</span>
   </div>
 
   <h1>欢迎访问本站</h1>
@@ -78,8 +78,27 @@
     function updateAuthUI() {
       document.getElementById('login-btn').style.display = isAuthenticated ? 'none' : 'inline';
       document.getElementById('logged-in-area').style.display = isAuthenticated ? 'inline' : 'none';
+      document.getElementById('current-user').textContent = localStorage.getItem('username') || 'Logged in';
     }
     updateAuthUI();
+
+    // 用 /api/me 校正 localStorage 与真实会话（cookie 过期/被撤销时自动退回未登录态）
+    (async () => {
+      try {
+        const res = await fetch('/api/me');
+        if (res.ok) {
+          const data = await res.json();
+          isAuthenticated = !!data.username;
+          localStorage.setItem('authenticated', isAuthenticated ? 'true' : 'false');
+          if (data.username) localStorage.setItem('username', data.username);
+        } else {
+          isAuthenticated = false;
+          localStorage.removeItem('authenticated');
+          localStorage.removeItem('username');
+        }
+        updateAuthUI();
+      } catch {}
+    })();
 
     function showLoginDialog() {
       document.getElementById('login-dialog').style.display = 'block';
@@ -95,8 +114,10 @@
           body: JSON.stringify({ password: pw })
         });
         if (res.ok) {
+          const data = await res.json().catch(() => ({}));
           isAuthenticated = true;
           localStorage.setItem('authenticated', 'true');
+          if (data.username) localStorage.setItem('username', data.username);
           document.getElementById('login-dialog').style.display = 'none';
           document.getElementById('login-password').value = '';
           updateAuthUI();
@@ -112,6 +133,7 @@
       await fetch('/api/logout', { method: 'POST' });
       isAuthenticated = false;
       localStorage.removeItem('authenticated');
+      localStorage.removeItem('username');
       updateAuthUI();
     }
 

@@ -257,17 +257,34 @@ Use [Caddyfile.example](./Caddyfile.example), or copy:
 ```
 
 ### Runtime ENV
-- `lite` service: `AUTH_PASSWORD`, `JWT_SECRET`, `PORT` (optional, default `8080`)
+- `lite` service: `JWT_SECRET`, `INVITE_CODES` (multi-user invite codes) and/or `AUTH_PASSWORD` (legacy admin login), `DATA_DIR` (optional, default `./data`), `PORT` (optional, default `8080`)
 - `heavy` service: `JWT_SECRET`, `PORT` (optional, default `8080`)
 - `tts` service: `JWT_SECRET`, `PORT` (optional, default `8080`)
 
 Set the same `JWT_SECRET` for all services so one login token works across all upstreams.
+
+### Multi-user login (invite codes)
+
+`lite` supports multi-user login via admin-configured invite codes:
+
+```shell
+INVITE_CODES='alice=code-a1b2c3,bob=code-x9y8z7'
+```
+
+- Format: comma-separated `username=code` pairs. Usernames: `[a-zA-Z0-9_-]` only (used in data filenames); codes shorter than 8 chars trigger a startup warning.
+- Users log in with the invite code on any login box (the request field is still `password` for backward compatibility with the bundled password-x frontend).
+- `AUTH_PASSWORD` remains as an `admin` fallback channel. At least one of `INVITE_CODES` / `AUTH_PASSWORD` must be set; production should prefer invite codes only.
+- **Data isolation**: each user's notes/passwords live in separate files — `data/notes-<user>.json`, `data/passwords-<user>.json` (directory configurable via `DATA_DIR`). Users can only see their own data.
+- **Migration**: on first startup, legacy `notes.json` / `passwords.json` in the working directory are renamed to the first invited user's files (or `admin` when only `AUTH_PASSWORD` is set).
+- **Revocation**: remove a user from `INVITE_CODES` and restart — their existing cookies immediately return 401 on `lite` routes. Note: `heavy`/`tts` only verify the JWT signature (they hold no user data), so a revoked user's token stays usable there until it expires (7 days).
 
 ### Local Development with docker-compose
 Start split services locally:
 
 ```shell
 AUTH_PASSWORD='your-password' JWT_SECRET='your-jwt-secret' docker compose up --build
+# or with invite codes:
+INVITE_CODES='alice=code-a1b2c3,bob=code-x9y8z7' JWT_SECRET='your-jwt-secret' docker compose up --build
 ```
 
 Then open:

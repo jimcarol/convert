@@ -68,7 +68,32 @@ marked.setOptions({
 function updateAuthUI() {
   loginBtn.style.display = isAuthenticated ? 'none' : 'inline-flex';
   loggedInArea.style.display = isAuthenticated ? 'inline-flex' : 'none';
+  const userBadge = document.getElementById('current-user');
+  if (userBadge && isAuthenticated) {
+    userBadge.textContent = localStorage.getItem('username') || 'Synced';
+  }
 }
+
+// 用 /api/me 校正 localStorage 与真实会话（cookie 过期/被撤销时自动退回未登录态）
+(async () => {
+  try {
+    const res = await fetch('/api/me');
+    if (res.ok) {
+      const data = await res.json();
+      isAuthenticated = !!data.username;
+      if (data.username) {
+        localStorage.setItem('authenticated', 'true');
+        localStorage.setItem('username', data.username);
+      }
+    } else {
+      isAuthenticated = false;
+      localStorage.removeItem('authenticated');
+      localStorage.removeItem('username');
+    }
+    updateAuthUI();
+    fetchNotes();
+  } catch {}
+})();
 
 function toggleTextareaHeight(textarea = contentInput) {
   textarea.classList.toggle('has-content', textarea.value.trim().length > 0);
@@ -94,8 +119,10 @@ async function doLogin() {
       body: JSON.stringify({ password: pw })
     });
     if (res.ok) {
+      const data = await res.json().catch(() => ({}));
       isAuthenticated = true;
       localStorage.setItem('authenticated', 'true');
+      if (data.username) localStorage.setItem('username', data.username);
       hideLoginDialog();
       updateAuthUI();
       fetchNotes();
@@ -110,6 +137,7 @@ async function doLogout() {
   await fetch('/api/logout', { method: 'POST' });
   isAuthenticated = false;
   localStorage.removeItem('authenticated');
+  localStorage.removeItem('username');
   updateAuthUI();
   fetchNotes();
 }
@@ -117,6 +145,7 @@ async function doLogout() {
 function handleAuthError() {
   isAuthenticated = false;
   localStorage.removeItem('authenticated');
+  localStorage.removeItem('username');
   updateAuthUI();
   fetchNotes();
 }

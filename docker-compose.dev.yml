@@ -21,6 +21,7 @@ services:
     container_name: converter-dev-lite
     environment:
       AUTH_PASSWORD: ${AUTH_PASSWORD:-dev-password}
+      INVITE_CODES: ${INVITE_CODES:-alice=code-a1b2,bob=code-c3d4}
       JWT_SECRET: ${JWT_SECRET:-dev-jwt-secret-change-me}
       PORT: "8080"
     volumes:

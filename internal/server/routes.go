@@ -2,6 +2,7 @@ package server
 
 import (
 	"file-converter/handlers"
+	"file-converter/internal/auth"
 	"net/http"
 
 	"github.com/gin-contrib/cors"
@@ -45,7 +46,7 @@ func RegisterPublicWebRoutes(r *gin.Engine) {
 	})
 }
 
-func RegisterAuthRoutes(r *gin.Engine, authPassword, jwtSecret string) {
-	r.POST("/api/login", handlers.LoginHandler(authPassword, jwtSecret))
+func RegisterAuthRoutes(r *gin.Engine, reg *auth.Registry, authPassword, jwtSecret string) {
+	r.POST("/api/login", handlers.LoginHandler(reg, authPassword, jwtSecret))
 	r.POST("/api/logout", handlers.LogoutHandler)
 }
