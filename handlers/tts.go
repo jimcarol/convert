@@ -2,6 +2,10 @@ package handlers
 
 import (
 	"context"
+	"errors"
+	"file-converter/internal/auth"
+	ttsqueue "file-converter/internal/tts"
+	"file-converter/middleware"
 	"fmt"
 	"net/http"
 	"os"
@@ -16,8 +20,17 @@ import (
 
 const (
 	ttsMaxRunes = 3000
-	ttsTimeout  = 120 * time.Second
+	ttsWorkers  = 2 // 同时合成的任务数上限
 )
+
+// ttsQueue 由 cmd/tts 启动时注入（见 InitTTSQueue）。
+var ttsQueue *ttsqueue.Queue
+
+// InitTTSQueue 注入任务队列，并返回队列实例供调用方启动 worker。
+func InitTTSQueue() *ttsqueue.Queue {
+	ttsQueue = ttsqueue.NewQueue(ttsWorkers, RunEdgeTTSJob)
+	return ttsQueue
+}
 
 type VoiceOption struct {
 	ID    string `json:"id"`
@@ -56,7 +69,8 @@ func GetTTSVoices(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"voices": ttsVoices})
 }
 
-// TTSHandler converts text to speech via the edge-tts CLI and returns a download URL.
+// TTSHandler 校验参数后把合成任务入队，立即返回 202 + job_id；
+// 前端轮询 GET /tts/jobs/:id 拿结果。admin 任务在队列中插队。
 func TTSHandler(c *gin.Context) {
 	var req TTSRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -86,40 +100,95 @@ func TTSHandler(c *gin.Context) {
 		return
 	}
 
-	base := fmt.Sprintf("%d", time.Now().UnixNano())
-	txtPath := filepath.Join("./tmp", base+".txt")
-	mp3Name := base + ".mp3"
+	username := middleware.Username(c)
+	job, position, err := ttsQueue.Enqueue(username, username == auth.AdminUsername, text, req.Voice, req.Rate, req.Pitch)
+	if errors.Is(err, ttsqueue.ErrQueueFull) {
+		c.JSON(http.StatusTooManyRequests, gin.H{"error": "队列已满，请稍后再试"})
+		return
+	}
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "enqueue failed"})
+		return
+	}
+
+	c.JSON(http.StatusAccepted, gin.H{
+		"job_id":     job.ID,
+		"status_url": "/tts/jobs/" + job.ID,
+		"position":   position,
+	})
+}
+
+// RunEdgeTTSJob 是注入队列的执行函数：写临时 txt、调 edge-tts、校验产物，
+// 返回 mp3 文件名。ctx 由队列 worker 带 120s 超时（不绑 HTTP 请求）。
+func RunEdgeTTSJob(ctx context.Context, j *ttsqueue.Job) (string, error) {
+	txtPath := filepath.Join("./tmp", j.ID+".txt")
+	mp3Name := j.ID + ".mp3"
 	mp3Path := filepath.Join("./tmp", mp3Name)
 
-	if err := os.WriteFile(txtPath, []byte(text), 0o600); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to write temp file"})
-		return
+	if err := os.WriteFile(txtPath, []byte(j.Text), 0o600); err != nil {
+		return "", errors.New("failed to write temp file")
 	}
 	defer os.Remove(txtPath)
 
-	ctx, cancel := context.WithTimeout(c.Request.Context(), ttsTimeout)
-	defer cancel()
-
-	out, err := runEdgeTTS(ctx, req.Voice, txtPath, mp3Path, req.Rate, req.Pitch)
+	out, err := runEdgeTTS(ctx, j.Voice, txtPath, mp3Path, j.Rate, j.Pitch)
 	if ctx.Err() == context.DeadlineExceeded {
-		c.JSON(http.StatusGatewayTimeout, gin.H{"error": "TTS timeout"})
-		return
+		return "", errors.New("TTS timeout")
 	}
 	if err != nil {
 		errOut := string(out)
 		if len(errOut) > 500 {
 			errOut = errOut[:500]
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "TTS failed: " + errOut})
-		return
+		return "", fmt.Errorf("TTS failed: %s", errOut)
 	}
 
 	if _, err := os.Stat(mp3Path); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "TTS failed: no output file"})
+		return "", errors.New("TTS failed: no output file")
+	}
+	return mp3Name, nil
+}
+
+// ttsJobVisible 校验当前用户能否看到该任务：owner 或 admin。
+// 对他人任务返回 404，不暴露任务存在性（文本内容有隐私性）。
+func ttsJobVisible(c *gin.Context) (*ttsqueue.Job, int, bool) {
+	job, position, ok := ttsQueue.Get(c.Param("id"))
+	username := middleware.Username(c)
+	if !ok || (job.Owner != username && username != auth.AdminUsername) {
+		c.JSON(http.StatusNotFound, gin.H{"error": "job not found"})
+		return nil, -1, false
+	}
+	return job, position, true
+}
+
+// TTSJobHandler 返回任务状态；queued 时带 position，done 时带 download_url。
+func TTSJobHandler(c *gin.Context) {
+	job, position, ok := ttsJobVisible(c)
+	if !ok {
 		return
 	}
+	resp := gin.H{"id": job.ID, "status": job.Status}
+	switch job.Status {
+	case ttsqueue.StatusQueued:
+		resp["position"] = position
+	case ttsqueue.StatusDone:
+		resp["download_url"] = "/tts/download/" + job.MP3Name
+	case ttsqueue.StatusFailed:
+		resp["error"] = job.Err
+	}
+	c.JSON(http.StatusOK, resp)
+}
 
-	c.JSON(http.StatusOK, gin.H{"download_url": "/tts/download/" + mp3Name})
+// TTSCancelHandler 取消排队中的任务（running 不可打断）。
+func TTSCancelHandler(c *gin.Context) {
+	job, _, ok := ttsJobVisible(c)
+	if !ok {
+		return
+	}
+	if !ttsQueue.Cancel(job.ID) {
+		c.JSON(http.StatusConflict, gin.H{"error": "任务已开始执行，无法取消"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "cancelled"})
 }
 
 // TTSDownloadHandler serves generated mp3 files.

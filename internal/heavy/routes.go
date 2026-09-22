@@ -23,12 +23,17 @@ func RegisterRoutes(r *gin.Engine, jwtSecret string) {
 	RegisterProtectedRoutes(api)
 }
 
+// RegisterProtectedRoutes 注册 heavy 类转换 API（pdfgen/word-pdf/gif）。
+// 仅限 admin：资源消耗大，普通登录用户返回 403。
+// 调用方需已在 api 上挂 AuthRequired。
 func RegisterProtectedRoutes(api *gin.RouterGroup) {
-	api.POST("/concat", handlers.UploadHandler)
-	api.POST("/convert", ConvertHandler)
-	api.POST("/upload-gif", handlers.UploadGIFHandler)
-	api.GET("/download/:filename", func(c *gin.Context) {
-		filename := c.Param("filename")
+	admin := api.Group("/")
+	admin.Use(middleware.AdminRequired())
+	admin.POST("/concat", handlers.UploadHandler)
+	admin.POST("/convert", ConvertHandler)
+	admin.POST("/upload-gif", handlers.UploadGIFHandler)
+	admin.GET("/download/:filename", func(c *gin.Context) {
+		filename := filepath.Base(c.Param("filename"))
 		filePath := filepath.Join("./tmp", filename)
 		c.FileAttachment(filePath, filename)
 	})

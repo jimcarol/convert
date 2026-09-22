@@ -60,7 +60,8 @@ func LogoutHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "logged out"})
 }
 
-// MeHandler 返回当前登录用户，供前端显示身份。
+// MeHandler 返回当前登录用户，供前端显示身份；is_admin 用于前端隐藏 admin 专属入口。
 func MeHandler(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{"username": middleware.Username(c)})
+	u := middleware.Username(c)
+	c.JSON(http.StatusOK, gin.H{"username": u, "is_admin": u == auth.AdminUsername})
 }

@@ -38,11 +38,11 @@ func RegisterPublicWebRoutes(r *gin.Engine) {
 	})
 }
 
-// RegisterProtectedWebRoutes 注册需要登录才能访问的 HTML 页面；
-// 未登录访问会被 PageAuthRequired 重定向到首页登录入口。
+// RegisterProtectedWebRoutes 注册 heavy 工具页面（file-convert/png-to-pdf/gif-generate）。
+// 仅限 admin：未登录 302 回首页，非 admin 返回 403。
 func RegisterProtectedWebRoutes(r *gin.Engine, reg *auth.Registry, allowAdmin bool, jwtSecret string) {
 	pages := r.Group("/")
-	pages.Use(middleware.PageAuthRequired(jwtSecret, reg, allowAdmin))
+	pages.Use(middleware.PageAdminRequired(jwtSecret, reg, allowAdmin))
 	pages.GET("/file-convert", func(c *gin.Context) {
 		c.HTML(http.StatusOK, "file-convert.html", nil)
 	})

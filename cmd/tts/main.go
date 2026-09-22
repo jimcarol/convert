@@ -24,9 +24,14 @@ func main() {
 		c.HTML(http.StatusOK, "tts.html", nil)
 	})
 
+	q := handlers.InitTTSQueue()
+	q.Start()
+
 	api := r.Group("/")
 	api.Use(middleware.AuthRequired(jwtSecret))
 	api.POST("/tts", handlers.TTSHandler)
+	api.GET("/tts/jobs/:id", handlers.TTSJobHandler)
+	api.DELETE("/tts/jobs/:id", handlers.TTSCancelHandler)
 	api.GET("/tts/voices", handlers.GetTTSVoices)
 	api.GET("/tts/download/:filename", handlers.TTSDownloadHandler)
 

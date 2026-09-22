@@ -66,9 +66,9 @@
   </div>
 
   <h1>欢迎访问本站</h1>
-  <a href="/file-convert">File Convert</a>
-  <a href="/png-to-pdf">Png To Pdf</a>
-  <a href="/gif-generate">Png To Gif</a>
+  <a href="/file-convert" class="admin-only" style="display:none">File Convert</a>
+  <a href="/png-to-pdf" class="admin-only" style="display:none">Png To Pdf</a>
+  <a href="/gif-generate" class="admin-only" style="display:none">Png To Gif</a>
   <a href="/online-note">Online Note</a>
   <a href="/password-x">Online password</a>
   <a href="/tts">Text To Speech</a>
@@ -91,6 +91,10 @@
           isAuthenticated = !!data.username;
           localStorage.setItem('authenticated', isAuthenticated ? 'true' : 'false');
           if (data.username) localStorage.setItem('username', data.username);
+          // admin 专属工具入口默认隐藏，仅 admin 显示
+          document.querySelectorAll('.admin-only').forEach(a => {
+            a.style.display = data.is_admin ? 'block' : 'none';
+          });
         } else {
           isAuthenticated = false;
           localStorage.removeItem('authenticated');

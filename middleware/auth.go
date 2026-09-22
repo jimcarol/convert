@@ -101,3 +101,35 @@ func PageAuthRequired(jwtSecret string, reg *auth.Registry, allowAdmin bool) gin
 		c.Next()
 	}
 }
+
+// AdminRequired 仅允许 admin（AUTH_PASSWORD 通道）访问，其余登录用户 403。
+// 必须在 AuthRequired 之后使用。
+func AdminRequired() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if Username(c) != auth.AdminUsername {
+			c.JSON(http.StatusForbidden, gin.H{"error": "admin only"})
+			c.Abort()
+			return
+		}
+		c.Next()
+	}
+}
+
+// PageAdminRequired 页面版 admin 限定：未登录/已撤销 302 回首页（同 PageAuthRequired），
+// 已登录但非 admin 返回 403 提示。
+func PageAdminRequired(jwtSecret string, reg *auth.Registry, allowAdmin bool) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if !validateToken(c, jwtSecret) || !activeUser(reg, allowAdmin, Username(c)) {
+			c.Redirect(http.StatusFound, "/")
+			c.Abort()
+			return
+		}
+		if Username(c) != auth.AdminUsername {
+			c.Data(http.StatusForbidden, "text/html; charset=utf-8",
+				[]byte(`<!DOCTYPE html><html lang="zh"><head><meta charset="UTF-8"><title>403</title></head><body style="font-family:sans-serif;text-align:center;padding-top:4rem;"><h2>403 · 仅限管理员使用</h2><p><a href="/">返回首页</a></p></body></html>`))
+			c.Abort()
+			return
+		}
+		c.Next()
+	}
+}
