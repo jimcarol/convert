@@ -178,6 +178,38 @@ func TTSJobHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, resp)
 }
 
+// TTSJobsHandler 返回当前用户的任务列表（倒序），供「我的任务」历史区块
+// 和刷新页面后恢复进行中任务使用。
+func TTSJobsHandler(c *gin.Context) {
+	const excerptRunes = 40
+	list := ttsQueue.List(middleware.Username(c))
+	jobs := make([]gin.H, 0, len(list))
+	for _, item := range list {
+		j := item.Job
+		entry := gin.H{
+			"id":         j.ID,
+			"status":     j.Status,
+			"created_at": j.CreatedAt,
+		}
+		runes := []rune(j.Text)
+		if len(runes) > excerptRunes {
+			entry["text_excerpt"] = string(runes[:excerptRunes]) + "…"
+		} else {
+			entry["text_excerpt"] = j.Text
+		}
+		switch j.Status {
+		case ttsqueue.StatusQueued:
+			entry["position"] = item.Position
+		case ttsqueue.StatusDone:
+			entry["download_url"] = "/tts/download/" + j.MP3Name
+		case ttsqueue.StatusFailed:
+			entry["error"] = j.Err
+		}
+		jobs = append(jobs, entry)
+	}
+	c.JSON(http.StatusOK, gin.H{"jobs": jobs})
+}
+
 // TTSCancelHandler 取消排队中的任务（running 不可打断）。
 func TTSCancelHandler(c *gin.Context) {
 	job, _, ok := ttsJobVisible(c)
@@ -214,7 +246,8 @@ func runEdgeTTS(ctx context.Context, voice, txtPath, mp3Path string, rate, pitch
 	return exec.CommandContext(ctx, "python3", args...).CombinedOutput()
 }
 
-// StartTTSCleaner periodically removes generated .mp3/.txt files older than 10 minutes.
+// StartTTSCleaner periodically removes generated .mp3/.txt files older than 15 minutes.
+// 15 分钟与队列的 jobTTL 对齐：历史列表可见期内下载链接保持有效。
 func StartTTSCleaner() {
 	ticker := time.NewTicker(5 * time.Minute)
 	for range ticker.C {
@@ -230,7 +263,7 @@ func StartTTSCleaner() {
 			}
 			path := filepath.Join("./tmp", f.Name())
 			info, err := os.Stat(path)
-			if err == nil && now.Sub(info.ModTime()) > 10*time.Minute {
+			if err == nil && now.Sub(info.ModTime()) > 15*time.Minute {
 				_ = os.Remove(path)
 			}
 		}

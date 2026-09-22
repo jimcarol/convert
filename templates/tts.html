@@ -148,6 +148,40 @@
     #recordStatus { font-size: 0.9rem; color: #555; font-variant-numeric: tabular-nums; }
     .hidden { display: none; }
     .hint { font-size: 0.8rem; color: #999; margin-top: 0.25rem; }
+    #history { margin-top: 1.5rem; }
+    #history h3 { font-size: 1rem; color: #555; margin: 0 0 0.5rem; }
+    #historyList { list-style: none; padding: 0; margin: 0; }
+    #historyList li {
+      background: white;
+      border: 1px solid #e9ecef;
+      border-radius: 6px;
+      padding: 0.6rem 0.75rem;
+      margin-bottom: 0.5rem;
+      font-size: 0.85rem;
+    }
+    #historyList .h-text { color: #333; word-break: break-all; }
+    #historyList .h-meta {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      margin-top: 0.3rem;
+      color: #999;
+      font-size: 0.78rem;
+    }
+    #historyList .h-status { font-weight: 600; }
+    #historyList .h-status.queued { color: #fd7e14; }
+    #historyList .h-status.running { color: #007bff; }
+    #historyList .h-status.done { color: #28a745; }
+    #historyList .h-status.failed { color: #dc3545; }
+    #historyList .h-cancel {
+      width: auto;
+      margin: 0;
+      padding: 0.1rem 0.6rem;
+      font-size: 0.75rem;
+      background: #e9ecef;
+      color: #333;
+    }
+    #historyList audio { width: 100%; margin-top: 0.4rem; }
   </style>
 </head>
 <body>
@@ -200,6 +234,10 @@
       <button type="button" id="cancelButton" class="hidden" style="background:#dc3545;">取消排队</button>
     </form>
     <div id="result"></div>
+    <div id="history" class="hidden">
+      <h3>我的任务</h3>
+      <ul id="historyList"></ul>
+    </div>
   </main>
 
   <script>
@@ -349,21 +387,81 @@
     let currentJobId = null;
     let polling = false;
 
+    const historyDiv = document.getElementById("history");
+    const historyList = document.getElementById("historyList");
+    const statusLabels = { queued: "🕐 排队中", running: "⚙️ 生成中", done: "✅ 已完成", failed: "❌ 已失败" };
+
+    function escapeHtml(s) {
+      return s.replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
+    }
+
+    function relTime(iso) {
+      const diff = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);
+      if (diff < 60) return "刚刚";
+      if (diff < 3600) return Math.floor(diff / 60) + " 分钟前";
+      return Math.floor(diff / 3600) + " 小时前";
+    }
+
+    // 加载「我的任务」历史列表；返回 jobs 供刷新恢复逻辑使用
+    async function loadHistory() {
+      let jobs = [];
+      try {
+        const res = await fetch("/tts/jobs");
+        if (!res.ok) { historyDiv.classList.add("hidden"); return jobs; }
+        jobs = (await res.json()).jobs || [];
+      } catch { return jobs; }
+      if (jobs.length === 0) { historyDiv.classList.add("hidden"); return jobs; }
+      // 正在播放历史音频时不重绘列表，避免打断播放
+      if ([...historyList.querySelectorAll("audio")].some((a) => !a.paused)) return jobs;
+      historyDiv.classList.remove("hidden");
+      historyList.innerHTML = "";
+      for (const j of jobs) {
+        const li = document.createElement("li");
+        const statusText = j.status === "queued" && j.position > 0
+          ? `🕐 排队中（前面还有 ${j.position} 个）`
+          : statusLabels[j.status] || j.status;
+        li.innerHTML = `
+          <div class="h-text">${escapeHtml(j.text_excerpt || "")}</div>
+          <div class="h-meta">
+            <span class="h-status ${j.status}">${statusText}</span>
+            <span>${relTime(j.created_at)}</span>
+            ${j.status === "done" && j.download_url ? `<a href="${j.download_url}">下载 MP3</a>` : ""}
+            ${j.status === "failed" && j.error ? `<span class="error">${escapeHtml(j.error)}</span>` : ""}
+          </div>
+          ${j.status === "done" && j.download_url ? `<audio controls preload="none" src="${j.download_url}"></audio>` : ""}
+        `;
+        if (j.status === "queued") {
+          const btn = document.createElement("button");
+          btn.textContent = "取消";
+          btn.className = "h-cancel";
+          btn.addEventListener("click", () => cancelJob(j.id));
+          li.querySelector(".h-meta").appendChild(btn);
+        }
+        historyList.appendChild(li);
+      }
+      return jobs;
+    }
+
+    async function cancelJob(id) {
+      try { await fetch("/tts/jobs/" + id, { method: "DELETE" }); } catch {}
+      if (currentJobId === id) {
+        result.innerHTML = "<p>已取消排队。</p>";
+        resetSubmitUI();
+      }
+      loadHistory();
+    }
+
     function resetSubmitUI() {
       submitButton.disabled = false;
       submitButton.textContent = "生成语音";
       cancelButton.classList.add("hidden");
       currentJobId = null;
       polling = false;
+      loadHistory();
     }
 
-    cancelButton.addEventListener("click", async () => {
-      if (!currentJobId) return;
-      try {
-        await fetch("/tts/jobs/" + currentJobId, { method: "DELETE" });
-      } catch {}
-      result.innerHTML = "<p>已取消排队。</p>";
-      resetSubmitUI();
+    cancelButton.addEventListener("click", () => {
+      if (currentJobId) cancelJob(currentJobId);
     });
 
     async function pollJob(jobId) {
@@ -407,6 +505,24 @@
       }
     }
 
+    // 刷新页面后恢复：存在进行中任务则继续轮询，并渲染历史列表
+    loadHistory().then((jobs) => {
+      const active = jobs.find((j) => j.status === "queued" || j.status === "running");
+      if (!active || currentJobId) return;
+      currentJobId = active.id;
+      polling = true;
+      submitButton.disabled = true;
+      if (active.status === "queued") {
+        submitButton.textContent = active.position > 0
+          ? `排队中...前面还有 ${active.position} 个任务`
+          : "排队中...即将开始";
+        cancelButton.classList.remove("hidden");
+      } else {
+        submitButton.textContent = "生成中...";
+      }
+      pollJob(active.id);
+    });
+
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
       submitButton.disabled = true;
@@ -431,6 +547,7 @@
             ? `排队中...前面还有 ${data.position} 个任务`
             : "排队中...即将开始";
           cancelButton.classList.remove("hidden");
+          loadHistory();
           pollJob(data.job_id);
         } else if (res.status === 401) {
           result.innerHTML = '<p class="error">未登录，请先在首页登录。</p>';

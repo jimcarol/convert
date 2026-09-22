@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sort"
 	"sync"
 	"time"
 )
@@ -26,6 +27,9 @@ const (
 	jobTTL      = 15 * time.Minute  // done/failed 条目保留时间
 	runTimeout  = 120 * time.Second // 单次合成执行超时
 	sweepPeriod = time.Minute
+
+	maxJobsPerUser  = 20  // 每用户最多保留的任务记录数（含历史）
+	maxFinishedJobs = 200 // 全局 done/failed 条目硬上限，超出按完成时间从旧到新驱逐
 )
 
 // ErrQueueFull 表示等待队列已满，handler 层映射为 429。
@@ -113,7 +117,68 @@ func (q *Queue) Enqueue(owner string, admin bool, text, voice string, rate, pitc
 	case q.notify <- struct{}{}:
 	default:
 	}
+	q.evictUserLocked(owner)
 	return j, position, nil
+}
+
+// evictUserLocked 限制单用户任务记录数：超过 maxJobsPerUser 时，
+// 驱逐该用户最旧的 done/failed 条目（排队中/执行中的任务不受影响）。调用方须持锁。
+func (q *Queue) evictUserLocked(owner string) {
+	var mine, finished []*Job
+	for _, j := range q.jobs {
+		if j.Owner == owner {
+			mine = append(mine, j)
+			if j.Status == StatusDone || j.Status == StatusFailed {
+				finished = append(finished, j)
+			}
+		}
+	}
+	excess := len(mine) - maxJobsPerUser
+	if excess <= 0 || len(finished) == 0 {
+		return
+	}
+	sort.Slice(finished, func(a, b int) bool { return finished[a].finishedAt.Before(finished[b].finishedAt) })
+	for _, j := range finished {
+		if excess <= 0 {
+			return
+		}
+		delete(q.jobs, j.ID)
+		excess--
+	}
+}
+
+// JobWithPosition 是 List 的返回项：任务 + 排队位置（非 queued 时 -1）。
+type JobWithPosition struct {
+	Job      *Job
+	Position int
+}
+
+// List 返回某用户的任务（按创建时间倒序，最多 maxJobsPerUser 条）。
+// admin 同样只看自己的。
+func (q *Queue) List(owner string) []JobWithPosition {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+
+	var mine []*Job
+	for _, j := range q.jobs {
+		if j.Owner == owner {
+			mine = append(mine, j)
+		}
+	}
+	sort.Slice(mine, func(a, b int) bool { return mine[a].CreatedAt.After(mine[b].CreatedAt) })
+	if len(mine) > maxJobsPerUser {
+		mine = mine[:maxJobsPerUser]
+	}
+
+	out := make([]JobWithPosition, 0, len(mine))
+	for _, j := range mine {
+		pos := -1
+		if j.Status == StatusQueued {
+			pos = q.positionLocked(j)
+		}
+		out = append(out, JobWithPosition{Job: j, Position: pos})
+	}
+	return out
 }
 
 // Get 查询任务；position 为前面等待的任务数，非 queued 状态返回 -1。
@@ -230,11 +295,13 @@ func (q *Queue) worker() {
 }
 
 // sweeper 定期清理：queued 超 queueTTL 的任务自动放弃；
-// done/failed 超 jobTTL 的条目从注册表删除（mp3 文件由 handlers 的 cleaner 清理）。
+// done/failed 超 jobTTL 的条目从注册表删除（mp3 文件由 handlers 的 cleaner 清理）；
+// done/failed 总数超 maxFinishedJobs 时按完成时间从旧到新驱逐，给内存占用一个硬上界。
 func (q *Queue) sweeper() {
 	ticker := time.NewTicker(sweepPeriod)
 	for now := range ticker.C {
 		q.mu.Lock()
+		var finished []*Job
 		for id, j := range q.jobs {
 			switch j.Status {
 			case StatusQueued:
@@ -247,7 +314,15 @@ func (q *Queue) sweeper() {
 			case StatusDone, StatusFailed:
 				if now.Sub(j.finishedAt) > jobTTL {
 					delete(q.jobs, id)
+				} else {
+					finished = append(finished, j)
 				}
+			}
+		}
+		if excess := len(finished) - maxFinishedJobs; excess > 0 {
+			sort.Slice(finished, func(a, b int) bool { return finished[a].finishedAt.Before(finished[b].finishedAt) })
+			for _, j := range finished[:excess] {
+				delete(q.jobs, j.ID)
 			}
 		}
 		q.mu.Unlock()
